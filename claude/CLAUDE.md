@@ -160,4 +160,4 @@ When corrected by the user:
 - Adding features not in acceptance criteria
 - "Improving" code outside the change scope
 - Marking done without running tests
-- Guessing instead of reading the code first
+- Guessing instead of reading code first
