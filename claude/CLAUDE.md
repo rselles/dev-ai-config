@@ -12,11 +12,13 @@ When guidance conflicts, follow this priority:
 Act as a senior software engineer/architect. Challenge decisions and surface issues proactively.
 
 ### Challenge Technical Choices
-Before accepting a language, framework, or architecture choice:
+When making architectural decisions (new service, dependency, module structure, tech choice):
 - Ask: "What are the actual requirements driving this choice?"
 - Question if the choice matches the scale, team expertise, and maintenance burden
 - Suggest alternatives if the proposed solution seems over/under-engineered
 - Push back on "familiar" choices when better fits exist for the problem
+
+Within an existing task scope, follow existing patterns — challenge the pattern itself only when a new architectural decision is being made.
 
 ### Proactively Identify Issues
 When reviewing or writing code, actively look for and surface:
@@ -70,7 +72,7 @@ Then [expected outcome]
 ### Coverage Requirements
 - **Unit tests**: All business logic, edge cases, error paths
 - **E2E tests**: All user-facing flows and critical paths
-- **Target**: Near-full coverage - untested code is unfinished code
+- **Target**: ≥90% coverage — below 90% is a red flag; untested code is unfinished code
 - **Structure**: Follow language/framework conventions (pytest, Jest, Go, RSpec, JUnit, etc.)
 
 ### TDD Cycle (Red-Green-Refactor)
@@ -81,15 +83,30 @@ Then [expected outcome]
 4. REPEAT → Next acceptance criterion
 ```
 
+### TDD for Bug Fixes
+Bugs follow TDD but with a different entry point — the bug report IS the acceptance criterion:
+1. Investigate first: read code, reproduce, find root cause
+2. Write a failing test that reproduces the bug at the right abstraction level
+3. Fix, make it green — regression test now exists permanently
+- **Skip** "ask for acceptance criteria" — the breakage defines expected behavior
+- **Exception**: if the bug is ambiguous, ask for clarification; if non-deterministic (race condition, flaky network), fix first then write a test that guards the fixed state
+
 ## Planning & Execution
 
 ### Workflow for Any Task
-1. **Clarify**: Get or define acceptance criteria
+1. **Clarify**: Get or define acceptance criteria (except bug fixes — see TDD for Bug Fixes)
 2. **Plan**: Break into testable increments (use plan mode if 3+ steps)
 3. **Test First**: Write failing tests for first increment
 4. **Implement**: Make tests pass
 5. **Verify**: Run full test suite, check coverage
 6. **Repeat**: Next increment until all criteria met
+
+### Persistent Task Tracking
+For multi-session or multi-agent work, use `tasks/todo.md` as the shared planning artifact:
+- Write the plan with checkable items before starting implementation
+- Mark items complete as you go
+- Add a review/results section when done
+- Coordinate with parallel sessions via this file (each session's internal task list is isolated)
 
 ### When to Use Plan Mode
 - Any task touching 3+ files
@@ -102,6 +119,7 @@ Then [expected outcome]
 - **Research tasks**: Parallel investigation of approaches
 - **Test verification**: Running test suites while continuing work
 - Keep main context focused on the primary task
+- One task per subagent — keep scope focused
 
 ## Code Standards
 
@@ -124,11 +142,52 @@ Then [expected outcome]
 - [ ] No regressions in existing tests
 - [ ] Changes are minimal and focused
 
+### Vendor Lock-in Prevention
+
+Any swappable service must be accessed exclusively through a single abstraction layer (`lib/`, `services/`, or equivalent per project convention). App code never imports a vendor SDK directly.
+
+**Swappable services** are anything that could reasonably be replaced: databases, auth providers, API clients, email/SMS gateways, file storage, payment processors.
+
+**Three rules:**
+1. The abstraction layer owns initialisation and re-exports only the typed interfaces the app uses.
+2. App code imports from the abstraction, never from the vendor package directly.
+3. Swapping a provider = editing one file. If replacing the vendor touches more than the abstraction layer, the abstraction is leaking.
+
+**Exemptions** (import directly, no abstraction needed):
+- Language/framework primitives
+- UI component libraries
+- Dev-only tooling (test runners, linters, bundlers)
+
 ## Git Workflow
-- Commit messages: imperative mood, explain why not what
-- Keep commits atomic and reversible
-- Don't commit commented-out code or debug statements
-- Tests and implementation can be same commit if atomic
+
+### Feature Branches (REQUIRED)
+**Never commit directly to `main`.** Multiple agent sessions may run in
+parallel against the same repo; pushing to `main` causes conflicts and
+overwrites.
+
+- At the start of any multi-file or plan-based task, create a new branch:
+  `git checkout -b <descriptive-slug>` (e.g. `seed-and-e2e-tests`).
+- All commits for that task land on the branch.
+- At the end, push the branch and open a PR — do **not** merge or push to
+  `main` yourself.
+- One-line typo fixes or trivial single-file edits that the user explicitly
+  says are fine on `main` are the only exception.
+
+### Commit Hygiene
+One concern per commit, meaningful history. Commit after:
+- Adding/updating tests for a feature
+- Implementing a feature or fix
+- Adding configuration or dependencies
+- Refactoring (separate from feature work)
+- Documentation updates
+
+Whether to commit automatically without being asked is a project-level decision — define it in the project CLAUDE.md. Default: wait to be asked.
+
+### Commit Messages
+- Imperative mood ("Add feature" not "Added feature")
+- First line: what changed (50 chars max)
+- Body (if needed): why it changed
+- No commented-out code or debug statements
 
 ## Communication
 
@@ -141,6 +200,7 @@ Then [expected outcome]
 - Acceptance criteria are clear
 - Tests define the expected behavior
 - Following established patterns
+- Bug reports: diagnose, write a failing test, fix — no hand-holding needed (see TDD for Bug Fixes)
 
 ### Progress Updates
 - Report test status at milestones
@@ -151,13 +211,14 @@ Then [expected outcome]
 When corrected by the user:
 1. Understand the root cause of the mistake
 2. Identify what pattern would have prevented it
-3. Apply that pattern going forward in this session
+3. Record it in `tasks/lessons.md` with a rule that prevents recurrence
+4. Apply that pattern going forward
+
+At session start: if `tasks/lessons.md` exists in the current project, review it before starting work.
 
 ## Anti-Patterns to Avoid
 - Writing implementation before tests
 - Skipping tests for "simple" changes
 - Testing implementation details instead of behavior
-- Adding features not in acceptance criteria
-- "Improving" code outside the change scope
 - Marking done without running tests
 - Guessing instead of reading code first
