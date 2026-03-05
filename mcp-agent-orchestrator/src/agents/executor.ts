@@ -131,7 +131,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
         }
       }
 
-      await onLog(turn + 1, toolCallToEvent(toolCall.name, toolCall.arguments));
+      if (toolCall.name !== "finish") {
+        await onLog(turn + 1, toolCallToEvent(toolCall.name, toolCall.arguments));
+      }
 
       const result = await handleTool(toolCall.name, toolCall.arguments, ctx);
 
@@ -167,6 +169,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
       }
 
       if (result.isFinish) {
+        await onLog(turn + 1, toolCallToEvent("finish", toolCall.arguments));
         finalResponse = result.finishSummary ?? "Task completed.";
         finalStatus = result.finishStatus ?? "success";
         didFinish = true;
