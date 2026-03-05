@@ -100,6 +100,7 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
           autoCreatedWorktree = resolvedWorkingDir;
           logger.info("Auto-created worktree", { path: resolvedWorkingDir, branch });
         } catch (err) {
+          logger.error("Failed to create worktree", { error: (err as Error).message });
           updateStatus(runId, "error");
           return {
             content: [
@@ -118,15 +119,19 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
       const onLog: OnLog = async (turn: number, event: string) => {
         appendLog(runId, turn, event);
         if (progressToken !== undefined) {
-          await extra.sendNotification({
-            method: "notifications/progress",
-            params: {
-              progressToken,
-              progress: turn,
-              total: max_turns ?? agentConfig.max_turns,
-              message: event,
-            },
-          });
+          try {
+            await extra.sendNotification({
+              method: "notifications/progress",
+              params: {
+                progressToken,
+                progress: turn,
+                total: max_turns ?? agentConfig.max_turns,
+                message: event,
+              },
+            });
+          } catch {
+            // Notification transport failure must not abort the agent run
+          }
         }
       };
 
