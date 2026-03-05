@@ -173,6 +173,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
         finalResponse = result.finishSummary ?? "Task completed.";
         finalStatus = result.finishStatus ?? "success";
         didFinish = true;
+        break;
       }
     }
 
