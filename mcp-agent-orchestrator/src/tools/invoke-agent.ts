@@ -144,7 +144,11 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
           onLog,
         });
 
-        updateStatus(runId, result.status === "success" ? "completed" : result.status);
+        if (result.status === "success") {
+          updateStatus(runId, "completed");
+        } else {
+          updateStatus(runId, result.status);
+        }
 
         const text = [
           `Status: ${result.status} | Turns: ${result.turns_used}/${max_turns ?? agentConfig.max_turns} | Run ID: ${runId}`,
