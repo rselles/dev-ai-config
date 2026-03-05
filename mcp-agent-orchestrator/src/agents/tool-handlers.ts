@@ -134,7 +134,7 @@ async function handleExecCommand(
       error.stdout ? `STDOUT:\n${error.stdout}` : "",
       error.stderr ? `STDERR:\n${error.stderr}` : "",
     ].filter(Boolean);
-    return { output: parts.join("\n") };
+    return { output: parts.join("\n"), isError: true };
   }
 }
 

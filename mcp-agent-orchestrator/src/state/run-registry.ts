@@ -43,6 +43,7 @@ export function appendLog(runId: string, turn: number, event: string): void {
 export function cancelRun(runId: string): boolean {
   const state = runs.get(runId);
   if (!state) return false;
+  if (state.status !== "running") return false;
   state.controller.abort();
   state.status = "cancelled";
   return true;
