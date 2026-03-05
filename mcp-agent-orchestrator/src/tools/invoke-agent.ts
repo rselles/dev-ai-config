@@ -1,9 +1,11 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { runAgent } from "../agents/executor.js";
+import type { OnLog } from "../agents/executor.js";
 import { getAgent } from "../agents/registry.js";
 import { createWorktree } from "../worktree/manager.js";
 import { logger } from "../utils/logger.js";
+import { createRun, getState, appendLog, updateStatus } from "../state/run-registry.js";
 
 // Role enum is built dynamically from registry at registration time
 const FALLBACK_ROLES = [
@@ -83,6 +85,10 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
         };
       }
 
+      // Create a run in the registry
+      const runId = createRun(role, task);
+      const runState = getState(runId)!;
+
       // Resolve or create worktree
       let resolvedWorkingDir = working_dir;
       let autoCreatedWorktree: string | undefined;
@@ -94,6 +100,7 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
           autoCreatedWorktree = resolvedWorkingDir;
           logger.info("Auto-created worktree", { path: resolvedWorkingDir, branch });
         } catch (err) {
+          updateStatus(runId, "error");
           return {
             content: [
               {
@@ -106,16 +113,22 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
         }
       }
 
-      // Build log callback if the client supplied a progress token
+      // Build log callback
       const progressToken = extra._meta?.progressToken;
-      const onLog = progressToken !== undefined
-        ? async (turn: number, event: string) => {
-            await extra.sendNotification({
-              method: "notifications/progress",
-              params: { progressToken, progress: turn, message: event },
-            });
-          }
-        : undefined;
+      const onLog: OnLog = async (turn: number, event: string) => {
+        appendLog(runId, turn, event);
+        if (progressToken !== undefined) {
+          await extra.sendNotification({
+            method: "notifications/progress",
+            params: {
+              progressToken,
+              progress: turn,
+              total: max_turns ?? agentConfig.max_turns,
+              message: event,
+            },
+          });
+        }
+      };
 
       try {
         const result = await runAgent({
@@ -127,11 +140,14 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
           includeSharedState: include_shared_state,
           maxTurns: max_turns,
           model,
+          signal: runState.controller.signal,
           onLog,
         });
 
+        updateStatus(runId, result.status === "success" ? "completed" : result.status);
+
         const text = [
-          `Status: ${result.status}`,
+          `Status: ${result.status} | Turns: ${result.turns_used}/${max_turns ?? agentConfig.max_turns} | Run ID: ${runId}`,
           autoCreatedWorktree ? `Worktree: ${autoCreatedWorktree}` : "",
           "",
           result.response,
@@ -145,6 +161,7 @@ export function registerInvokeAgentTool(server: McpServer, roles: string[]): voi
 
         return { content: [{ type: "text", text }] };
       } catch (err) {
+        updateStatus(runId, "error");
         return {
           content: [{ type: "text", text: `Agent error: ${(err as Error).message}` }],
           isError: true,
