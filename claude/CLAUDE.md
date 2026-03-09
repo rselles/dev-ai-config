@@ -116,10 +116,12 @@ Save plans in the project repo, not only in `~/.claude/plans/`:
 
 ### Agentic Dev Journal (`agentic-dev-journal` repo)
 Update the journal when a significant event occurs — not for routine plans:
-- **Production incident** — add timeline entry, copy scrubbed plan to `snapshots/plans/`, update relevant arc
+- **Service incident** (ArguIAno down, API retired, VPS issue) — timeline entry, scrubbed plan snapshot, update relevant arc
 - **Architectural decision** (build vs buy, model swap, new pattern adopted) — `snapshots/decisions/` + timeline entry
 - **New project starts** — add to README table and `timeline.md`
 - **Project arc concludes** — update or close the relevant `arcs/` file
+
+**Project context:** Only ArguIAno is in active use (2 users, personal). TravelFlow is an MVP under market validation (free-tier Vercel, no paying users yet). recetario-cli and MCP Orchestrator are experimental/development. Reflect this accurately in all content — avoid overstating scale.
 
 For everything else, `docs/plans/` in the project repo is sufficient.
 
