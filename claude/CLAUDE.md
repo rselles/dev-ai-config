@@ -108,6 +108,12 @@ For multi-session or multi-agent work, use `tasks/todo.md` as the shared plannin
 - Add a review/results section when done
 - Coordinate with parallel sessions via this file (each session's internal task list is isolated)
 
+### Plan Storage
+Save plans in the project repo, not only in `~/.claude/plans/`:
+- Default location: `docs/plans/<descriptive-name>.md` in the project repo
+- **Visibility rule:** Do NOT commit or push a plan unless the repo is private. If the repo is public (or visibility is unknown), keep the plan local-only (unstaged, or `docs/plans/` in `.gitignore`).
+- Check repo visibility before committing: `gh repo view --json isPrivate`
+
 ### When to Use Plan Mode
 - Any task touching 3+ files
 - Architectural decisions or new patterns
@@ -168,10 +174,34 @@ overwrites.
 - At the start of any multi-file or plan-based task, create a new branch:
   `git checkout -b <descriptive-slug>` (e.g. `seed-and-e2e-tests`).
 - All commits for that task land on the branch.
-- At the end, push the branch and open a PR — do **not** merge or push to
-  `main` yourself.
+- At the end, follow the project's merge preference (defined in its CLAUDE.md).
+  Default: push the branch and open a PR. Per-project override allowed (e.g. merge locally and push).
 - One-line typo fixes or trivial single-file edits that the user explicitly
   says are fine on `main` are the only exception.
+
+### Git Commands Outside the Current Directory
+Use `git -C <path>` instead of `cd <path> && git`. This avoids obscuring the
+actual command and does not affect the shell's working directory:
+
+```bash
+# Good
+git -C /path/to/repo status
+git -C /path/to/repo merge feature-branch
+
+# Bad — hides the git command behind a cd
+cd /path/to/repo && git status
+```
+
+### Multi-Agent Development with Worktrees
+Git worktrees are the standard for parallel agent work — each agent gets an
+isolated working directory on its own branch, sharing the same object store.
+No better alternative exists (separate clones are heavier; branch-switching is serial).
+
+Rules when using worktrees:
+- **Always commit changes in the worktree before merging.** Uncommitted changes are not part of the branch and will not be included in the merge.
+- Use `git -C <worktree-path>` for all git operations on the worktree.
+- Verify tests pass on the merged result before pushing.
+- Remove the worktree and delete the branch after a successful merge.
 
 ### Commit Hygiene
 One concern per commit, meaningful history. Commit after:
@@ -188,6 +218,15 @@ Whether to commit automatically without being asked is a project-level decision 
 - First line: what changed (50 chars max)
 - Body (if needed): why it changed
 - No commented-out code or debug statements
+
+Pass commit messages directly — no `cat` or heredoc subprocess:
+```bash
+# Single line
+git commit -m "Add feature"
+
+# Multiline — use ANSI-C quoting ($'...'), \n becomes a real newline
+git commit -m $'Add feature\n\nWhy it was needed'
+```
 
 ## Communication
 
@@ -215,6 +254,12 @@ When corrected by the user:
 4. Apply that pattern going forward
 
 At session start: if `tasks/lessons.md` exists in the current project, review it before starting work.
+
+## Project-Specific Rules
+
+When working in a project, any language- or tooling-specific rules discovered
+(e.g. how to run tests, venv paths, binary locations, linter commands) must be
+added to that project's `CLAUDE.md`. Do not store them only in private memory.
 
 ## Anti-Patterns to Avoid
 - Writing implementation before tests
