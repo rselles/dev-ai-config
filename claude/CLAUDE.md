@@ -114,6 +114,15 @@ Save plans in the project repo, not only in `~/.claude/plans/`:
 - **Visibility rule:** Do NOT commit or push a plan unless the repo is private. If the repo is public (or visibility is unknown), keep the plan local-only (unstaged, or `docs/plans/` in `.gitignore`).
 - Check repo visibility before committing: `gh repo view --json isPrivate`
 
+### Agentic Dev Journal (`agentic-dev-journal` repo)
+Update the journal when a significant event occurs — not for routine plans:
+- **Production incident** — add timeline entry, copy scrubbed plan to `snapshots/plans/`, update relevant arc
+- **Architectural decision** (build vs buy, model swap, new pattern adopted) — `snapshots/decisions/` + timeline entry
+- **New project starts** — add to README table and `timeline.md`
+- **Project arc concludes** — update or close the relevant `arcs/` file
+
+For everything else, `docs/plans/` in the project repo is sufficient.
+
 ### When to Use Plan Mode
 - Any task touching 3+ files
 - Architectural decisions or new patterns
