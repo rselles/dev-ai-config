@@ -229,8 +229,10 @@ Whether to commit automatically without being asked is a project-level decision 
 - First line: what changed (50 chars max)
 - Blank line between subject and body
 - Body: why it changed (required by default unless the user says otherwise)
-- Include a Co-Authored-By line by default:
-  `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
+- Include a Co-Authored-By line by default using the current model and provider:
+  `Co-Authored-By: <CURRENT_MODEL> <noreply@PROVIDER_DOMAIN>`
+  Replace `<CURRENT_MODEL>` with the active model name at commit time (e.g., `GPT-5.2-Codex`).
+  Replace `<PROVIDER_DOMAIN>` with the current provider domain (e.g., `openai.com`).
 - No commented-out code or debug statements
 
 Pass commit messages directly — no `cat` or heredoc subprocess:
@@ -239,7 +241,7 @@ Pass commit messages directly — no `cat` or heredoc subprocess:
 git commit -m "Add feature"
 
 # Multiline — use ANSI-C quoting ($'...'), \n becomes a real newline
-git commit -m $'Add feature\n\nWhy it was needed\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>'
+git commit -m $'Add feature\n\nWhy it was needed\n\nCo-Authored-By: <CURRENT_MODEL> <noreply@PROVIDER_DOMAIN>'
 ```
 
 ## Communication
