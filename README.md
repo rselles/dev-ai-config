@@ -9,6 +9,16 @@ dev-ai-config/
 ├── AGENTS.md                        # Canonical cross-CLI instructions
 ├── CLI-HOOK-SPEC.md                 # Tool-agnostic hook contract
 ├── README.md
+├── skills/                          # Cross-CLI custom skills (source of truth)
+│   ├── self-correction/SKILL.md
+│   ├── agentic-dev-journal/SKILL.md
+│   ├── test-driven-development/SKILL.md
+│   ├── writing-plans/SKILL.md
+│   ├── subagent-driven-dev/SKILL.md
+│   ├── brainstorming/SKILL.md
+│   └── systematic-debugging/SKILL.md
+├── scripts/
+│   └── setup-skills.sh              # Symlink installer for all CLIs
 ├── hooks/                           # Tool-agnostic hook scripts (bash, jq required)
 │   ├── pre-run.sh                   # SessionStart: inject tasks/lessons.md
 │   ├── pre-commit.sh                # PreToolUse: validate commit message
@@ -16,8 +26,10 @@ dev-ai-config/
 │   └── tests/
 │       └── test-hooks.sh            # Automated test suite (20 tests)
 ├── claude/                          # Claude Code-specific config
-│   └── hooks/
-│       └── settings-fragment.json   # Merge into ~/.claude/settings.json
+│   ├── hooks/
+│   │   └── settings-fragment.json   # Merge into ~/.claude/settings.json
+│   └── skills/
+│       └── sync-agents-md/          # Claude-only skill
 └── gemini/                          # Gemini CLI-specific config
     └── hooks/
         └── settings-fragment.json   # Merge into ~/.gemini/settings.json
@@ -47,6 +59,73 @@ For details, see [`CLI-HOOK-SPEC.md`](CLI-HOOK-SPEC.md), including canonical fil
 Plans are local-only for public repos (general CLI rule).
 
 For personal projects, `ROADMAP.md` can be public and serves as a single-developer tracker for progress, ideas, improvements, and pending exploration/research.
+
+## Skills
+
+`skills/` contains cross-CLI custom skills — structured workflow instructions that CLIs load and follow when triggered. Skills are tool-agnostic markdown with YAML frontmatter; the same file works across Claude Code, Gemini CLI, Codex CLI, and Google Antigravity.
+
+### Available Skills
+
+| Skill | Trigger | User-invocable |
+|-------|---------|----------------|
+| `self-correction` | When the user corrects the assistant mid-task | No — fires automatically |
+| `agentic-dev-journal` | Significant events: incidents, architectural decisions, new projects, arc closures | Yes (`/agentic-dev-journal`) |
+| `test-driven-development` | Before writing any implementation code | Yes (`/test-driven-development`) |
+| `writing-plans` | When you have requirements for a multi-step task, before touching code | Yes (`/writing-plans`) |
+| `subagent-driven-dev` | When executing implementation plans with independent tasks | Yes (`/subagent-driven-dev`) |
+| `brainstorming` | Before any creative work — features, components, functionality changes | Yes (`/brainstorming`) |
+| `systematic-debugging` | When encountering any bug, test failure, or unexpected behavior | Yes (`/systematic-debugging`) |
+
+### Key Customisations vs Stock Superpowers Skills
+
+- **Given/When/Then** acceptance criteria format (TDD skill)
+- **≥90% coverage target** explicitly enforced (TDD skill)
+- **Bug-fix TDD entry point** — bug report IS the AC, skip asking (TDD skill)
+- **`tasks/lessons.md`** check at session start and before debugging/implementing (all applicable skills)
+- **`TaskCreate`/`TaskUpdate`** for task tracking (not TodoWrite)
+- **`docs/plans/`** for plan and spec storage (not `docs/superpowers/`)
+- **Repo visibility check** before committing plans: `gh repo view --json isPrivate`
+- **Commit messages** use multiple `-m` flags with `Co-Authored-By` (not heredoc/ANSI-C quoting)
+- **Mandatory stop after 3 failed fixes** + involve user (debugging skill)
+- **agentic-dev-journal integration** for architectural decisions (brainstorming, writing-plans)
+
+### Installing Skills
+
+Run the setup script to create per-skill symlinks into each installed CLI's skill directory:
+
+```bash
+bash scripts/setup-skills.sh
+```
+
+The script is idempotent — safe to re-run. It detects which CLIs are installed and skips any that aren't present.
+
+To also install into a Google Antigravity project (project-level `.agents/skills/`):
+
+```bash
+bash scripts/setup-skills.sh --project /path/to/project
+```
+
+### CLI Support Matrix
+
+| Feature | Claude Code | Gemini CLI (v0.26+) | Codex CLI | Antigravity |
+|---------|-------------|---------------------|-----------|-------------|
+| SKILL.md format | ✅ Native | ✅ Native | As prompts | ✅ Native |
+| Skill auto-discovery | ✅ `~/.claude/skills/` | ✅ `~/.gemini/skills/` | ❌ Manual | ✅ `.agents/skills/` |
+| User-invocable (`/skill`) | ✅ `Skill` tool | ✅ `activate_skill` | ❌ | ✅ |
+| Install type | Symlink dir | Symlink dir | Symlink SKILL.md as `<name>.md` | Symlink dir (project-level) |
+
+### OS-Specific Symlink Notes
+
+The setup script handles symlink creation on Linux/macOS/WSL2. On **Windows native** (CMD), the script does not run — create symlinks manually with `mklink /D`:
+
+```cmd
+mklink /D "%USERPROFILE%\.claude\skills\brainstorming" "C:\path\to\dev-ai-config\skills\brainstorming"
+REM Repeat for each skill directory
+```
+
+### Coexistence with Superpowers Plugin
+
+Custom skills use the same names as their Superpowers counterparts (`brainstorming`, `test-driven-development`, etc.). Claude Code loads user/project skills with priority over plugin skills, so the custom versions take precedence. Superpowers skills that have no custom counterpart (e.g., `finishing-a-development-branch`, `verification-before-completion`) continue to work normally.
 
 ## Programmatic Hooks
 
