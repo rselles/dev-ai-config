@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "pre-push.sh: jq is required but not installed" >&2
+  exit 1
+fi
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 

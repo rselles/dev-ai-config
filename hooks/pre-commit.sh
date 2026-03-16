@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "pre-commit.sh: jq is required but not installed" >&2
+  exit 1
+fi
+
 # Read stdin JSON
 INPUT=$(cat)
 
@@ -39,10 +44,8 @@ done < <(
 
 if [ -z "$MSG" ]; then exit 0; fi  # couldn't parse -> conservative
 
-# Subject = first line
-SUBJECT="${MSG%%
-*}"
-SUBJECT="${SUBJECT%%\\n*}"
+# Subject = first line only
+SUBJECT="${MSG%%$'\n'*}"
 
 # Length check
 if [ "${#SUBJECT}" -gt 50 ]; then

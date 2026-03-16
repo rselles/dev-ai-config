@@ -73,7 +73,7 @@ else
 fi
 
 # Test 4: Imperative first word ("Add feature") -> exit 0
-# "Add" is not in the allowlist but does not end in -ed or -ing.
+# "Add" is in the allowlist; allowlist check fires before suffix check.
 INPUT=$(jq -n --arg cmd "git commit -m 'Add feature'" \
   '{"tool_input": {"command": $cmd}}')
 run_hook "$PRE_COMMIT" "$INPUT" HOOK_BRANCH_OVERRIDE=feature/test
@@ -263,12 +263,22 @@ else
     "exit=$EXIT_CODE output='$OUTPUT'"
 fi
 
+# Test 20: Imperative word not in allowlist and no -ed/-ing suffix -> exit 0
+# "Tweak" is not in the allowlist but is imperative. Should pass.
+INPUT=$(jq -n --arg cmd "git commit -m 'Tweak config timeout'" '{"tool_input": {"command": $cmd}}')
+run_hook "$PRE_COMMIT" "$INPUT" HOOK_BRANCH_OVERRIDE=feature/test
+if [ "$EXIT_CODE" -eq 0 ]; then
+  pass "pre-commit: non-allowlist imperative word ('Tweak') -> exit 0"
+else
+  fail "pre-commit: non-allowlist imperative word ('Tweak') -> exit 0" "got exit $EXIT_CODE"
+fi
+
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "Results: $PASS passed, $FAIL failed"
+echo "Results: $PASS passed, $FAIL failed (expected 20 passed)"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
