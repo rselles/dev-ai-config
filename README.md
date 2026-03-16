@@ -123,6 +123,26 @@ mklink /D "%USERPROFILE%\.claude\skills\brainstorming" "C:\path\to\dev-ai-config
 REM Repeat for each skill directory
 ```
 
+### Claude-Only Skills
+
+`claude/skills/sync-agents-md/` is a Claude-only skill not covered by `setup-skills.sh`. Symlink it manually:
+
+```bash
+ln -s ~/claude-projects/dev-ai-config/claude/skills/sync-agents-md ~/.claude/skills/sync-agents-md
+```
+
+### Gemini: AGENTS.md Context
+
+Add `contextFileName` to `~/.gemini/settings.json` so Gemini loads AGENTS.md as global context:
+
+```json
+{
+  "contextFileName": "AGENTS.md"
+}
+```
+
+Also symlink `~/.gemini/AGENTS.md` to the canonical file (see OS Setup section below).
+
 ### Coexistence with Superpowers Plugin
 
 Custom skills use the same names as their Superpowers counterparts (`brainstorming`, `test-driven-development`, etc.). Claude Code loads user/project skills with priority over plugin skills, so the custom versions take precedence. Superpowers skills that have no custom counterpart (e.g., `finishing-a-development-branch`, `verification-before-completion`) continue to work normally.
