@@ -1,0 +1,31 @@
+{
+  "_comment": "Fragment to merge into ~/.claude/settings.json. Adjust the absolute path to match your checkout.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/pre-run.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/pre-commit.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/pre-push.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

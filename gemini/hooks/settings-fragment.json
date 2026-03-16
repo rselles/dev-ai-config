@@ -1,0 +1,31 @@
+{
+  "_comment": "Fragment to merge into ~/.gemini/settings.json (or .gemini/settings.json in project root). Adjust paths and verify tool name matcher for your Gemini CLI version.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/pre-run.sh"
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "matcher": "run_in_terminal|shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/pre-commit.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/pre-push.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
