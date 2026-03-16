@@ -6,9 +6,21 @@ Personal configuration files for AI coding assistants.
 
 ```
 dev-ai-config/
-├── AGENTS.md            # Canonical cross-CLI instructions
-├── CLI-HOOK-SPEC.md     # Tool-agnostic hook contract
-└── README.md
+├── AGENTS.md                        # Canonical cross-CLI instructions
+├── CLI-HOOK-SPEC.md                 # Tool-agnostic hook contract
+├── README.md
+├── hooks/                           # Tool-agnostic hook scripts (bash, jq required)
+│   ├── pre-run.sh                   # SessionStart: inject tasks/lessons.md
+│   ├── pre-commit.sh                # PreToolUse: validate commit message
+│   ├── pre-push.sh                  # PreToolUse: advisory before push
+│   └── tests/
+│       └── test-hooks.sh            # Automated test suite (20 tests)
+├── claude/                          # Claude Code-specific config
+│   └── hooks/
+│       └── settings-fragment.json   # Merge into ~/.claude/settings.json
+└── gemini/                          # Gemini CLI-specific config
+    └── hooks/
+        └── settings-fragment.json   # Merge into ~/.gemini/settings.json
 ```
 
 ## Canonical Instructions (AGENTS.md)
@@ -36,16 +48,82 @@ Plans are local-only for public repos (general CLI rule).
 
 For personal projects, `ROADMAP.md` can be public and serves as a single-developer tracker for progress, ideas, improvements, and pending exploration/research.
 
+## Programmatic Hooks
+
+Hook scripts in `hooks/` enforce development rules from `CLI-HOOK-SPEC.md` at
+the tool level. Scripts are tool-agnostic — the same script runs on any CLI that
+supports hooks with a compatible stdin contract.
+
+**Prerequisites:** `bash`, `jq`
+
+### What each hook does
+
+| Hook | Event | Blocking? | Rule enforced |
+|---|---|---|---|
+| `pre-run.sh` | Session start | No | Injects `tasks/lessons.md` into context if present |
+| `pre-commit.sh` | Before bash tool | **Yes** | Blocks commits to `main`/`master`; validates subject ≤50 chars + imperative mood |
+| `pre-commit.sh` | Before bash tool | No (advisory) | Reminds to add Co-Authored-By if missing |
+| `pre-push.sh` | Before bash tool | No (advisory) | Reminds to confirm tests passed |
+
+### CLI support
+
+| Hook | Claude Code | Gemini CLI (v0.26+) | Codex CLI |
+|---|---|---|---|
+| Session start (lessons.md) | ✅ | ✅ | — |
+| Commit validation (blocking) | ✅ | ✅ | — |
+| Push advisory | ✅ | ✅ | — |
+
+Codex CLI's experimental hooks do not support tool blocking. Rules are enforced
+there via `AGENTS.md` instructions only.
+
+### Script contract
+
+Scripts read JSON from stdin (provided natively by Claude Code and Gemini CLI):
+
+```jsonc
+// SessionStart payload
+{ "cwd": "/path/to/project" }
+
+// PreToolUse / BeforeTool payload
+{ "tool_input": { "command": "git commit -m '...'" }, "cwd": "..." }
+```
+
+- **Exit 0** — proceed. Stdout JSON `{"hookSpecificOutput":{"additionalContext":"..."}}` injects context.
+- **Exit 2** — block. Stderr message becomes feedback to the assistant.
+
+### Known limitations
+
+- Commit message parsing supports `-m 'msg'` and `-m "msg"` forms only.
+  Does not handle ANSI-C `$'...'` quoting, `--message=`, or multiple `-m` flags.
+  Unparseable messages pass through (conservative).
+- `pre-run.sh` checks only `$cwd/tasks/lessons.md` — no parent directory walk.
+- Gemini CLI tool name matcher (`run_in_terminal|shell`) may need adjustment
+  depending on your Gemini CLI version.
+
 ## Setup by CLI
 
 **Claude**
 - Claude reads `~/.claude/CLAUDE.md`. Point it to the canonical `AGENTS.md`.
 
+**Hooks (optional):** To enable programmatic rule enforcement, merge
+`claude/hooks/settings-fragment.json` into `~/.claude/settings.json`.
+The fragment adds `SessionStart` and `PreToolUse` hook entries alongside
+any existing hooks. Adjust the absolute script paths to match your checkout.
+
 **Codex**
 - Codex reads `AGENTS.md` from the repo and/or home. Ensure a home-level `AGENTS.md` symlink for global defaults.
 
+**Hooks:** Codex CLI's hook system (experimental, v0.111+) supports only
+`SessionStart` and `Stop` events with no tool blocking. Rules from
+`CLI-HOOK-SPEC.md` are enforced via `AGENTS.md` instructions. See
+`CLI-HOOK-SPEC.md` for the full hook contract.
+
 **Gemini**
 - Configure `contextFileName` to `AGENTS.md` and symlink `~/.gemini/AGENTS.md` to the canonical file.
+
+**Hooks (optional):** Merge `gemini/hooks/settings-fragment.json` into
+`~/.gemini/settings.json`. Verify the `BeforeTool` matcher regex matches
+your Gemini CLI version's shell tool name.
 
 ## OS Setup
 
