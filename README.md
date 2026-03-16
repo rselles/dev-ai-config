@@ -7,9 +7,7 @@ Personal configuration files for AI coding assistants.
 ```
 dev-ai-config/
 ├── AGENTS.md            # Canonical cross-CLI instructions
-├── claude/
-│   └── CLAUDE.md          # Compatibility symlink to AGENTS.md
-├── CLI-HOOK-SPEC.md       # Tool-agnostic hook contract
+├── CLI-HOOK-SPEC.md     # Tool-agnostic hook contract
 └── README.md
 ```
 
