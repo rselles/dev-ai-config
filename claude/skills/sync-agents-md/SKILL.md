@@ -1,6 +1,6 @@
 ---
-name: sync-claude-md
-description: Commit and push any uncommitted changes to the global CLAUDE.md. Use after modifying ~/.claude/CLAUDE.md to keep the remote dev-ai-config repo in sync.
+name: sync-agents-md
+description: Commit and push any uncommitted changes to the canonical AGENTS.md. Use after modifying ~/.claude/CLAUDE.md (symlinked to AGENTS.md) to keep the remote dev-ai-config repo in sync.
 user-invocable: true
 ---
 
