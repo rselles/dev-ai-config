@@ -46,84 +46,27 @@ When reviewing or writing code, actively look for and surface:
 
 ## Testing Philosophy (TDD Default)
 
-### The Golden Rule
-**No implementation code without a failing test first.**
+**No implementation code without a failing test first.** TDD is the default. Only skip when the user explicitly says so. Use the `test-driven-development` skill for the full workflow.
 
-TDD is the default workflow. Only skip when the user explicitly says so.
-
-### Before Any Implementation
-1. **Clarify Acceptance Criteria** - If not provided, ask or help define them
-2. **Write failing tests** that verify each acceptance criterion
-3. **Then implement** the minimum code to make tests pass
-4. **Refactor** while keeping tests green
-
-### Acceptance Criteria Requirements
-Every task needs clear acceptance criteria before coding begins. If missing:
-- Ask: "What are the acceptance criteria for this feature?"
-- Or propose: "Based on [context], I'd define these acceptance criteria: [list]. Does this match your expectations?"
-
-Format acceptance criteria as testable statements:
-```
-Given [precondition]
-When [action]
-Then [expected outcome]
-```
-
-### Coverage Requirements
-- **Unit tests**: All business logic, edge cases, error paths
-- **E2E tests**: All user-facing flows and critical paths
-- **Target**: ≥90% coverage — below 90% is a red flag; untested code is unfinished code
-- **Structure**: Follow language/framework conventions (pytest, Jest, Go, RSpec, JUnit, etc.)
-
-### TDD Cycle (Red-Green-Refactor)
-```
-1. RED    → Write a test that fails (proves the test works)
-2. GREEN  → Write minimum code to pass
-3. REFACTOR → Clean up while tests stay green
-4. REPEAT → Next acceptance criterion
-```
-
-### TDD for Bug Fixes
-Bugs follow TDD but with a different entry point — the bug report IS the acceptance criterion:
-1. Investigate first: read code, reproduce, find root cause
-2. Write a failing test that reproduces the bug at the right abstraction level
-3. Fix, make it green — regression test now exists permanently
-- **Skip** "ask for acceptance criteria" — the breakage defines expected behavior
-- **Exception**: if the bug is ambiguous, ask for clarification; if non-deterministic (race condition, flaky network), fix first then write a test that guards the fixed state
+### Key Rules
+- Acceptance criteria in `Given / When / Then` format before writing tests
+- Coverage target: **≥90%** — below is a red flag; untested code is unfinished
+- Test runner: match whatever the project already uses (pytest, Jest, `go test`, RSpec, JUnit)
+- **Bug fixes:** the bug report IS the acceptance criterion — skip asking, investigate and write a failing test first
 
 ## Planning & Execution
 
 ### Workflow for Any Task
-1. **Clarify**: Get or define acceptance criteria (except bug fixes — see TDD for Bug Fixes)
-2. **Plan**: Break into testable increments (use plan mode if 3+ steps)
-3. **Test First**: Write failing tests for first increment
-4. **Implement**: Make tests pass
-5. **Verify**: Run full test suite, check coverage
-6. **Repeat**: Next increment until all criteria met
-
-### Persistent Task Tracking
-For multi-session or multi-agent work, use `tasks/todo.md` as the shared planning artifact:
-- Write the plan with checkable items before starting implementation
-- Mark items complete as you go
-- Add a review/results section when done
-- Coordinate with parallel sessions via this file (each session's internal task list is isolated)
+1. **Clarify**: Define acceptance criteria (skip for bug fixes — the breakage is the spec)
+2. **Plan**: Break into testable increments; use plan mode if 3+ steps
+3. **Test First → Implement → Verify → Repeat**
 
 ### Plan Storage
-Save plans in the project repo, not only in tool-specific plan directories (e.g., `~/.claude/plans/`):
-- Default location: `docs/plans/<descriptive-name>.md` in the project repo
-- **Visibility rule:** Do NOT commit or push a plan unless the repo is private. If the repo is public (or visibility is unknown), keep the plan local-only (unstaged, or `docs/plans/` in `.gitignore`).
-- Check repo visibility before committing: `gh repo view --json isPrivate`
+- Save to `docs/plans/<name>.md` in the project repo
+- Check visibility before committing: `gh repo view --json isPrivate` — keep local-only if public or unknown
 
-### Agentic Dev Journal (`agentic-dev-journal` repo)
-Update the journal when a significant event occurs — not for routine plans:
-- **Service incident** (ArguIAno down, API retired, VPS issue) — timeline entry, scrubbed plan snapshot, update relevant arc
-- **Architectural decision** (build vs buy, model swap, new pattern adopted) — `snapshots/decisions/` + timeline entry
-- **New project starts** — add to README table and `timeline.md`
-- **Project arc concludes** — update or close the relevant `arcs/` file
-
-**Project context:** Only ArguIAno is in active use (2 users, personal). TravelFlow is an MVP under market validation (free-tier Vercel, no paying users yet). recetario-cli and MCP Orchestrator are experimental/development. Reflect this accurately in all content — avoid overstating scale.
-
-For everything else, `docs/plans/` in the project repo is sufficient.
+### Agentic Dev Journal
+Use the `agentic-dev-journal` skill for significant events: incidents, architectural decisions, new project starts, arc closures. Not for routine feature plans.
 
 ### When to Use Plan Mode
 - Any task touching 3+ files
@@ -225,23 +168,12 @@ One concern per commit, meaningful history. Commit after:
 Whether to commit automatically without being asked is a project-level decision — define it in the project AGENTS.md (or equivalent). Default: wait to be asked.
 
 ### Commit Messages
-- Imperative mood ("Add feature" not "Added feature")
-- First line: what changed (50 chars max)
-- Blank line between subject and body
-- Body: why it changed (required by default unless the user says otherwise)
-- Include a Co-Authored-By line by default using the current model and provider:
-  `Co-Authored-By: <CURRENT_MODEL> <noreply@PROVIDER_DOMAIN>`
-  Replace `<CURRENT_MODEL>` with the active model name at commit time (e.g., `GPT-5.2-Codex`).
-  Replace `<PROVIDER_DOMAIN>` with the current provider domain (e.g., `openai.com`).
-- No commented-out code or debug statements
+- Imperative mood, subject ≤50 chars, body explains why
+- Include `Co-Authored-By: <MODEL> <noreply@PROVIDER>` (hooks give an advisory if missing)
+- Use multiple `-m` flags — no heredoc, no ANSI-C `$'...'` quoting:
 
-Pass commit messages directly — no `cat` or heredoc subprocess:
 ```bash
-# Single line
-git commit -m "Add feature"
-
-# Multiline — use ANSI-C quoting ($'...'), \n becomes a real newline
-git commit -m $'Add feature\n\nWhy it was needed\n\nCo-Authored-By: <CURRENT_MODEL> <noreply@PROVIDER_DOMAIN>'
+git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ## Communication
@@ -263,13 +195,7 @@ git commit -m $'Add feature\n\nWhy it was needed\n\nCo-Authored-By: <CURRENT_MOD
 - Explain what changed and why
 
 ## Self-Correction
-When corrected by the user:
-1. Understand the root cause of the mistake
-2. Identify what pattern would have prevented it
-3. Record it in `tasks/lessons.md` with a rule that prevents recurrence
-4. Apply that pattern going forward
-
-At session start: if `tasks/lessons.md` exists in the current project, review it before starting work.
+Use the `self-correction` skill when corrected. It records the lesson to `tasks/lessons.md` and applies the pattern going forward. `tasks/lessons.md` is injected at session start automatically by the pre-run hook.
 
 ## Project-Specific Rules
 
