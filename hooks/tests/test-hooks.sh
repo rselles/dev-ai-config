@@ -333,6 +333,107 @@ fi
 cleanup_signals
 
 # ---------------------------------------------------------------------------
+# post-session.sh tests
+# ---------------------------------------------------------------------------
+POST_SESSION="$HOOKS_DIR/post-session.sh"
+
+# Helper: create a mock claude binary that returns known output
+MOCK_CLAUDE_DIR=""
+setup_mock_claude() {
+  local output="$1"
+  local exit_code="${2:-0}"
+  MOCK_CLAUDE_DIR=$(mktemp -d)
+  printf '#!/usr/bin/env bash\necho "%s"\nexit %s\n' "$output" "$exit_code" > "$MOCK_CLAUDE_DIR/claude"
+  chmod +x "$MOCK_CLAUDE_DIR/claude"
+  export PATH="$MOCK_CLAUDE_DIR:$PATH"
+}
+cleanup_mock_claude() {
+  [ -n "$MOCK_CLAUDE_DIR" ] && rm -rf "$MOCK_CLAUDE_DIR"
+  MOCK_CLAUDE_DIR=""
+}
+
+# Test P1: stop_hook_active=true → exits 0, produces no output
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+INPUT=$(jq -n '{"stop_hook_active": true, "transcript_path": "/dev/null"}')
+OUTPUT=$(echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ] && [ -z "$OUTPUT" ]; then
+  pass "post-session: stop_hook_active=true → exits 0 silently"
+else
+  fail "post-session: stop_hook_active=true → exits 0 silently" \
+       "exit=$EXIT_CODE output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P2: non-empty draft → "Review now?" prompt shown
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "## vps-log-review\nAdd new pattern\n## AGENTS.md\nno update needed\n## Journal\nno update needed"
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+OUTPUT=$(printf "N\n" | echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+cleanup_mock_claude
+if echo "$OUTPUT" | grep -qi "Review now"; then
+  pass "post-session: non-empty draft → Review now? prompt shown"
+else
+  fail "post-session: non-empty draft → Review now? prompt shown" \
+       "output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P3: all sections "no update needed" → exits silently, no prompt
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "## vps-log-review\nno update needed\n## AGENTS.md\nno update needed\n## Journal\nno update needed"
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+OUTPUT=$(echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+cleanup_mock_claude
+if [ -z "$OUTPUT" ]; then
+  pass "post-session: all no update needed → exits silently"
+else
+  fail "post-session: all no update needed → exits silently" \
+       "output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P4: answer N → pending.md overwritten (not appended)
+PENDING_P=$(mktemp)
+echo "old content" > "$PENDING_P"
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "## vps-log-review\nAdd new pattern"
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+printf "N\n" | echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null
+cleanup_mock_claude
+if grep -q "Add new pattern" "$PENDING_P" 2>/dev/null && ! grep -q "old content" "$PENDING_P" 2>/dev/null; then
+  pass "post-session: answer N → pending.md overwritten not appended"
+else
+  fail "post-session: answer N → pending.md overwritten not appended" \
+       "pending.md: $(cat "$PENDING_P" 2>/dev/null || echo 'missing')"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P5: claude -p exits 1 → script exits 0 silently
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "" 1
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+OUTPUT=$(echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+EXIT_CODE=$?
+cleanup_mock_claude
+if [ "$EXIT_CODE" -eq 0 ] && [ -z "$OUTPUT" ]; then
+  pass "post-session: claude failure → exits 0 silently"
+else
+  fail "post-session: claude failure → exits 0 silently" \
+       "exit=$EXIT_CODE output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
