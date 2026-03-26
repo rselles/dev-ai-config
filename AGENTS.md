@@ -209,3 +209,17 @@ added to that project's `AGENTS.md` (or equivalent). Do not store them only in p
 - Testing implementation details instead of behavior
 - Marking done without running tests
 - Guessing instead of reading code first
+
+## Self-Improvement Protocol
+
+After every session, the session-end knowledge capture hook (`post-session.sh`) reviews this file for proposed improvements. It considers:
+
+- New global rules discovered in the session
+- Anti-patterns that emerged and should be documented
+- Workflow improvements or corrections to existing guidance
+- New tool patterns or hook behaviors worth standardising
+
+If the hook proposes an update, review it critically. Only apply changes that are:
+1. Broadly applicable (not project-specific — those go in the project's CLAUDE.md)
+2. A genuine improvement over existing guidance (not redundant)
+3. Based on a real observed pattern, not a one-off

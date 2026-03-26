@@ -433,6 +433,53 @@ else
 fi
 rm -f "$PENDING_P" "$SIGNALS_P"
 
+# Test P6: project CLAUDE.md with Self-Improvement Protocol → included in prompt context
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+PROJECT_DIR_P=$(mktemp -d)
+printf '# Project Docs\n## Self-Improvement Protocol\nSave lessons here.\n' > "$PROJECT_DIR_P/CLAUDE.md"
+setup_mock_claude "## vps-log-review\nno update needed\n## AGENTS.md\nno update needed\n## Project CLAUDE.md\nAdd gotcha\n## Journal\nno update needed"
+INPUT=$(jq -n --arg cwd "$PROJECT_DIR_P" '{"stop_hook_active": false, "transcript_path": "/dev/null", "cwd": $cwd}')
+OUTPUT=$(printf "N\n" | echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+cleanup_mock_claude
+if echo "$OUTPUT" | grep -q "Review now"; then
+  pass "post-session: project CLAUDE.md with Self-Improvement Protocol → prompt shown"
+else
+  fail "post-session: project CLAUDE.md with Self-Improvement Protocol → prompt shown" \
+       "output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+rm -rf "$PROJECT_DIR_P"
+
+# Test P7: project CLAUDE.md without Self-Improvement Protocol → content not included in prompt
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+PROJECT_DIR_P=$(mktemp -d)
+UNIQUE_MARKER_P="UNIQUE_NO_PROTOCOL_MARKER_$$"
+printf '# Project Docs\n%s\nNo protocol section here.\n' "$UNIQUE_MARKER_P" > "$PROJECT_DIR_P/CLAUDE.md"
+# Capture the prompt sent to claude using a recording mock
+MOCK_CLAUDE_DIR_P=$(mktemp -d)
+cat > "$MOCK_CLAUDE_DIR_P/claude" <<'MOCKEOF'
+#!/usr/bin/env bash
+PROMPT_FILE=$(dirname "$0")/prompt.txt
+cat > "$PROMPT_FILE"
+printf '## vps-log-review\nAdd pattern\n## AGENTS.md\nno update needed\n## Journal\nno update needed\n'
+exit 0
+MOCKEOF
+chmod +x "$MOCK_CLAUDE_DIR_P/claude"
+INPUT=$(jq -n --arg cwd "$PROJECT_DIR_P" '{"stop_hook_active": false, "transcript_path": "/dev/null", "cwd": $cwd}')
+printf "N\n" | echo "$INPUT" | PATH="$MOCK_CLAUDE_DIR_P:$PATH" SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null
+if [ -f "$MOCK_CLAUDE_DIR_P/prompt.txt" ] && ! grep -q "$UNIQUE_MARKER_P" "$MOCK_CLAUDE_DIR_P/prompt.txt"; then
+  pass "post-session: project CLAUDE.md without Self-Improvement Protocol → content not in prompt"
+else
+  fail "post-session: project CLAUDE.md without Self-Improvement Protocol → content not in prompt" \
+       "prompt contained unexpected project CLAUDE.md content"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+rm -rf "$PROJECT_DIR_P" "$MOCK_CLAUDE_DIR_P"
+
 # ---------------------------------------------------------------------------
 # pre-run.sh pending.md injection tests
 # ---------------------------------------------------------------------------
