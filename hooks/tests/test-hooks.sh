@@ -343,7 +343,7 @@ setup_mock_claude() {
   local output="$1"
   local exit_code="${2:-0}"
   MOCK_CLAUDE_DIR=$(mktemp -d)
-  printf '#!/usr/bin/env bash\necho "%s"\nexit %s\n' "$output" "$exit_code" > "$MOCK_CLAUDE_DIR/claude"
+  printf '#!/usr/bin/env bash\nprintf '"'"'%%b\n'"'"' "%s"\nexit %s\n' "$output" "$exit_code" > "$MOCK_CLAUDE_DIR/claude"
   chmod +x "$MOCK_CLAUDE_DIR/claude"
   export PATH="$MOCK_CLAUDE_DIR:$PATH"
 }

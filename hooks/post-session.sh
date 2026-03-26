@@ -23,7 +23,6 @@ if [ ! -f "$SIGNALS_FILE" ] || [ ! -s "$SIGNALS_FILE" ]; then
 fi
 
 SIGNALS=$(sort -u "$SIGNALS_FILE")
-rm -f "$SIGNALS_FILE"
 
 # Build transcript excerpt (last 200 JSONL lines, extract content fields)
 TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
@@ -71,13 +70,11 @@ Output format (use these exact headers):
 ## Journal
 [proposed entry or: no update needed]"
 
-DRAFT=$(printf '%s' "$PROMPT" | timeout 30s claude -p 2>/dev/null) || { exit 0; }
+DRAFT=$(printf '%s' "$PROMPT" | timeout 30s claude -p 2>/dev/null) || { echo "post-session: claude -p failed or timed out" >&2; exit 0; }
+rm -f "$SIGNALS_FILE"
 
 # If every section says "no update needed", exit silently
-# Normalize literal \n sequences to real newlines (handles both mock and real claude output),
-# then check if any non-header line has content other than "no update needed".
-DRAFT_NORMALIZED=$(printf '%b' "$DRAFT")
-if ! printf '%s' "$DRAFT_NORMALIZED" | grep -v "^## " | grep -qv "no update needed"; then
+if ! printf '%s' "$DRAFT" | grep -v "^## " | grep -qv "no update needed"; then
   exit 0
 fi
 
