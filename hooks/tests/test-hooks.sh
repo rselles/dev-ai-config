@@ -274,11 +274,70 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# track-session.sh tests
+# ---------------------------------------------------------------------------
+TRACK="$HOOKS_DIR/track-session.sh"
+
+SIGNALS_OVERRIDE=""
+cleanup_signals() { rm -f "$SIGNALS_OVERRIDE"; }
+
+# Test T1: Skill tool with vps-log-review (has Self-Improvement Protocol) → appends skill name
+cleanup_signals
+SIGNALS_OVERRIDE=$(mktemp)
+INPUT=$(jq -n '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if grep -q "vps-log-review" "$SIGNALS_OVERRIDE" 2>/dev/null; then
+  pass "track-session: Skill with SIP section → skill name appended"
+else
+  fail "track-session: Skill with SIP section → skill name appended" \
+       "signals file: $(cat "$SIGNALS_OVERRIDE" 2>/dev/null || echo 'missing')"
+fi
+
+# Test T2: Skill tool with brainstorming (no Self-Improvement Protocol) → nothing written
+SIGNALS_OVERRIDE=$(mktemp)
+cleanup_signals
+INPUT=$(jq -n '{"tool_name": "Skill", "tool_input": {"skill": "brainstorming"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if [ ! -s "$SIGNALS_OVERRIDE" ]; then
+  pass "track-session: Skill without SIP → nothing written"
+else
+  fail "track-session: Skill without SIP → nothing written" \
+       "file unexpectedly contains: $(cat "$SIGNALS_OVERRIDE")"
+fi
+cleanup_signals
+
+# Test T3: Bash tool with ssh rafaelselles → appends vps-debug
+cleanup_signals
+SIGNALS_OVERRIDE=$(mktemp)
+INPUT=$(jq -n '{"tool_name": "Bash", "tool_input": {"command": "ssh rafaelselles ls"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if grep -q "vps-debug" "$SIGNALS_OVERRIDE" 2>/dev/null; then
+  pass "track-session: Bash ssh rafaelselles → vps-debug appended"
+else
+  fail "track-session: Bash ssh rafaelselles → vps-debug appended" \
+       "signals file: $(cat "$SIGNALS_OVERRIDE" 2>/dev/null || echo 'missing')"
+fi
+cleanup_signals
+
+# Test T4: Bash tool without SSH → nothing written
+SIGNALS_OVERRIDE=$(mktemp)
+cleanup_signals
+INPUT=$(jq -n '{"tool_name": "Bash", "tool_input": {"command": "ls -la /tmp"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if [ ! -s "$SIGNALS_OVERRIDE" ]; then
+  pass "track-session: Bash without SSH → nothing written"
+else
+  fail "track-session: Bash without SSH → nothing written" \
+       "file unexpectedly contains: $(cat "$SIGNALS_OVERRIDE")"
+fi
+cleanup_signals
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "Results: $PASS passed, $FAIL failed (expected 20 passed)"
+echo "Results: $PASS passed, $FAIL failed (expected: 20 original pass, T1+T3 fail (script missing), T2+T4 pass vacuously)"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
