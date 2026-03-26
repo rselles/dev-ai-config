@@ -274,11 +274,267 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# track-session.sh tests
+# ---------------------------------------------------------------------------
+TRACK="$HOOKS_DIR/track-session.sh"
+
+SIGNALS_OVERRIDE=""
+cleanup_signals() { rm -f "$SIGNALS_OVERRIDE"; }
+
+# Test T1: Skill tool with vps-log-review (has Self-Improvement Protocol) → appends skill name
+cleanup_signals
+SIGNALS_OVERRIDE=$(mktemp)
+INPUT=$(jq -n '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if grep -q "vps-log-review" "$SIGNALS_OVERRIDE" 2>/dev/null; then
+  pass "track-session: Skill with SIP section → skill name appended"
+else
+  fail "track-session: Skill with SIP section → skill name appended" \
+       "signals file: $(cat "$SIGNALS_OVERRIDE" 2>/dev/null || echo 'missing')"
+fi
+
+# Test T2: Skill tool with brainstorming (no Self-Improvement Protocol) → nothing written
+SIGNALS_OVERRIDE=$(mktemp)
+cleanup_signals
+INPUT=$(jq -n '{"tool_name": "Skill", "tool_input": {"skill": "brainstorming"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if [ ! -s "$SIGNALS_OVERRIDE" ]; then
+  pass "track-session: Skill without SIP → nothing written"
+else
+  fail "track-session: Skill without SIP → nothing written" \
+       "file unexpectedly contains: $(cat "$SIGNALS_OVERRIDE")"
+fi
+cleanup_signals
+
+# Test T3: Bash tool with ssh rafaelselles → appends vps-debug
+cleanup_signals
+SIGNALS_OVERRIDE=$(mktemp)
+INPUT=$(jq -n '{"tool_name": "Bash", "tool_input": {"command": "ssh rafaelselles ls"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if grep -q "vps-debug" "$SIGNALS_OVERRIDE" 2>/dev/null; then
+  pass "track-session: Bash ssh rafaelselles → vps-debug appended"
+else
+  fail "track-session: Bash ssh rafaelselles → vps-debug appended" \
+       "signals file: $(cat "$SIGNALS_OVERRIDE" 2>/dev/null || echo 'missing')"
+fi
+cleanup_signals
+
+# Test T4: Bash tool without SSH → nothing written
+SIGNALS_OVERRIDE=$(mktemp)
+cleanup_signals
+INPUT=$(jq -n '{"tool_name": "Bash", "tool_input": {"command": "ls -la /tmp"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
+if [ ! -s "$SIGNALS_OVERRIDE" ]; then
+  pass "track-session: Bash without SSH → nothing written"
+else
+  fail "track-session: Bash without SSH → nothing written" \
+       "file unexpectedly contains: $(cat "$SIGNALS_OVERRIDE")"
+fi
+cleanup_signals
+
+# ---------------------------------------------------------------------------
+# post-session.sh tests
+# ---------------------------------------------------------------------------
+POST_SESSION="$HOOKS_DIR/post-session.sh"
+
+# Helper: create a mock claude binary that returns known output
+MOCK_CLAUDE_DIR=""
+setup_mock_claude() {
+  local output="$1"
+  local exit_code="${2:-0}"
+  MOCK_CLAUDE_DIR=$(mktemp -d)
+  printf '#!/usr/bin/env bash\nprintf '"'"'%%b\n'"'"' "%s"\nexit %s\n' "$output" "$exit_code" > "$MOCK_CLAUDE_DIR/claude"
+  chmod +x "$MOCK_CLAUDE_DIR/claude"
+  export PATH="$MOCK_CLAUDE_DIR:$PATH"
+}
+cleanup_mock_claude() {
+  [ -n "$MOCK_CLAUDE_DIR" ] && rm -rf "$MOCK_CLAUDE_DIR"
+  MOCK_CLAUDE_DIR=""
+}
+
+# Test P1: stop_hook_active=true → exits 0, produces no output
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+INPUT=$(jq -n '{"stop_hook_active": true, "transcript_path": "/dev/null"}')
+OUTPUT=$(echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ] && [ -z "$OUTPUT" ]; then
+  pass "post-session: stop_hook_active=true → exits 0 silently"
+else
+  fail "post-session: stop_hook_active=true → exits 0 silently" \
+       "exit=$EXIT_CODE output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P2: non-empty draft → "Review now?" prompt shown
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "## vps-log-review\nAdd new pattern\n## AGENTS.md\nno update needed\n## Journal\nno update needed"
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+OUTPUT=$(printf "N\n" | echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+cleanup_mock_claude
+if echo "$OUTPUT" | grep -qi "Review now"; then
+  pass "post-session: non-empty draft → Review now? prompt shown"
+else
+  fail "post-session: non-empty draft → Review now? prompt shown" \
+       "output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P3: all sections "no update needed" → exits silently, no prompt
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "## vps-log-review\nno update needed\n## AGENTS.md\nno update needed\n## Journal\nno update needed"
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+OUTPUT=$(echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+cleanup_mock_claude
+if [ -z "$OUTPUT" ]; then
+  pass "post-session: all no update needed → exits silently"
+else
+  fail "post-session: all no update needed → exits silently" \
+       "output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P4: answer N → pending.md overwritten (not appended)
+PENDING_P=$(mktemp)
+echo "old content" > "$PENDING_P"
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "## vps-log-review\nAdd new pattern"
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+printf "N\n" | echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null
+cleanup_mock_claude
+if grep -q "Add new pattern" "$PENDING_P" 2>/dev/null && ! grep -q "old content" "$PENDING_P" 2>/dev/null; then
+  pass "post-session: answer N → pending.md overwritten not appended"
+else
+  fail "post-session: answer N → pending.md overwritten not appended" \
+       "pending.md: $(cat "$PENDING_P" 2>/dev/null || echo 'missing')"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P5: claude -p exits 1 → script exits 0 silently
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_mock_claude "" 1
+INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+OUTPUT=$(echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+EXIT_CODE=$?
+cleanup_mock_claude
+if [ "$EXIT_CODE" -eq 0 ] && [ -z "$OUTPUT" ]; then
+  pass "post-session: claude failure → exits 0 silently"
+else
+  fail "post-session: claude failure → exits 0 silently" \
+       "exit=$EXIT_CODE output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+
+# Test P6: project CLAUDE.md with Self-Improvement Protocol → included in prompt context
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+PROJECT_DIR_P=$(mktemp -d)
+printf '# Project Docs\n## Self-Improvement Protocol\nSave lessons here.\n' > "$PROJECT_DIR_P/CLAUDE.md"
+setup_mock_claude "## vps-log-review\nno update needed\n## AGENTS.md\nno update needed\n## Project CLAUDE.md\nAdd gotcha\n## Journal\nno update needed"
+INPUT=$(jq -n --arg cwd "$PROJECT_DIR_P" '{"stop_hook_active": false, "transcript_path": "/dev/null", "cwd": $cwd}')
+OUTPUT=$(printf "N\n" | echo "$INPUT" | SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null)
+cleanup_mock_claude
+if echo "$OUTPUT" | grep -q "Review now"; then
+  pass "post-session: project CLAUDE.md with Self-Improvement Protocol → prompt shown"
+else
+  fail "post-session: project CLAUDE.md with Self-Improvement Protocol → prompt shown" \
+       "output='$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+rm -rf "$PROJECT_DIR_P"
+
+# Test P7: project CLAUDE.md without Self-Improvement Protocol → content not included in prompt
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+PROJECT_DIR_P=$(mktemp -d)
+UNIQUE_MARKER_P="UNIQUE_NO_PROTOCOL_MARKER_$$"
+printf '# Project Docs\n%s\nNo protocol section here.\n' "$UNIQUE_MARKER_P" > "$PROJECT_DIR_P/CLAUDE.md"
+# Capture the prompt sent to claude using a recording mock
+MOCK_CLAUDE_DIR_P=$(mktemp -d)
+cat > "$MOCK_CLAUDE_DIR_P/claude" <<'MOCKEOF'
+#!/usr/bin/env bash
+PROMPT_FILE=$(dirname "$0")/prompt.txt
+cat > "$PROMPT_FILE"
+printf '## vps-log-review\nAdd pattern\n## AGENTS.md\nno update needed\n## Journal\nno update needed\n'
+exit 0
+MOCKEOF
+chmod +x "$MOCK_CLAUDE_DIR_P/claude"
+INPUT=$(jq -n --arg cwd "$PROJECT_DIR_P" '{"stop_hook_active": false, "transcript_path": "/dev/null", "cwd": $cwd}')
+printf "N\n" | echo "$INPUT" | PATH="$MOCK_CLAUDE_DIR_P:$PATH" SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" bash "$POST_SESSION" 2>/dev/null
+if [ -f "$MOCK_CLAUDE_DIR_P/prompt.txt" ] && ! grep -q "$UNIQUE_MARKER_P" "$MOCK_CLAUDE_DIR_P/prompt.txt"; then
+  pass "post-session: project CLAUDE.md without Self-Improvement Protocol → content not in prompt"
+else
+  fail "post-session: project CLAUDE.md without Self-Improvement Protocol → content not in prompt" \
+       "prompt contained unexpected project CLAUDE.md content"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+rm -rf "$PROJECT_DIR_P" "$MOCK_CLAUDE_DIR_P"
+
+# ---------------------------------------------------------------------------
+# pre-run.sh pending.md injection tests
+# ---------------------------------------------------------------------------
+
+# Test R1: recent pending.md → injected with instruction
+PENDING_R=$(mktemp)
+printf '## vps-log-review\nAdd new pattern\n' > "$PENDING_R"
+TMPDIR_R=$(mktemp -d)
+INPUT=$(jq -n --arg cwd "$TMPDIR_R" '{"cwd": $cwd}')
+OUTPUT=$(echo "$INPUT" | PENDING_FILE_OVERRIDE="$PENDING_R" bash "$PRE_RUN" 2>/dev/null)
+if echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null | grep -q "pending session review"; then
+  pass "pre-run: recent pending.md → injected with instruction"
+else
+  fail "pre-run: recent pending.md → injected with instruction" \
+       "output=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo 'no json')"
+fi
+rm -f "$PENDING_R"
+rm -rf "$TMPDIR_R"
+
+# Test R2: pending.md older than 7 days → age warning in context
+PENDING_R=$(mktemp)
+printf 'old draft content\n' > "$PENDING_R"
+touch -d "8 days ago" "$PENDING_R"
+TMPDIR_R=$(mktemp -d)
+INPUT=$(jq -n --arg cwd "$TMPDIR_R" '{"cwd": $cwd}')
+OUTPUT=$(echo "$INPUT" | PENDING_FILE_OVERRIDE="$PENDING_R" bash "$PRE_RUN" 2>/dev/null)
+if echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null | grep -q "days old"; then
+  pass "pre-run: old pending.md → age warning in context"
+else
+  fail "pre-run: old pending.md → age warning in context" \
+       "output=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo 'no json')"
+fi
+rm -f "$PENDING_R"
+rm -rf "$TMPDIR_R"
+
+# Test R3: no pending.md → no pending injection in context
+PENDING_R="/tmp/nonexistent-pending-$$"
+TMPDIR_R=$(mktemp -d)
+INPUT=$(jq -n --arg cwd "$TMPDIR_R" '{"cwd": $cwd}')
+OUTPUT=$(echo "$INPUT" | PENDING_FILE_OVERRIDE="$PENDING_R" bash "$PRE_RUN" 2>/dev/null)
+CONTEXT=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo "")
+if [ -z "$CONTEXT" ] || ! echo "$CONTEXT" | grep -q "pending session review"; then
+  pass "pre-run: no pending.md → no pending injection"
+else
+  fail "pre-run: no pending.md → no pending injection" \
+       "context unexpectedly contains pending content"
+fi
+rm -rf "$TMPDIR_R"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "Results: $PASS passed, $FAIL failed (expected 20 passed)"
+echo "Results: $PASS passed, $FAIL failed"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
