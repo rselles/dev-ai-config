@@ -434,11 +434,60 @@ fi
 rm -f "$PENDING_P" "$SIGNALS_P"
 
 # ---------------------------------------------------------------------------
+# pre-run.sh pending.md injection tests
+# ---------------------------------------------------------------------------
+
+# Test R1: recent pending.md → injected with instruction
+PENDING_R=$(mktemp)
+printf '## vps-log-review\nAdd new pattern\n' > "$PENDING_R"
+TMPDIR_R=$(mktemp -d)
+INPUT=$(jq -n --arg cwd "$TMPDIR_R" '{"cwd": $cwd}')
+OUTPUT=$(echo "$INPUT" | PENDING_FILE_OVERRIDE="$PENDING_R" bash "$PRE_RUN" 2>/dev/null)
+if echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null | grep -q "pending session review"; then
+  pass "pre-run: recent pending.md → injected with instruction"
+else
+  fail "pre-run: recent pending.md → injected with instruction" \
+       "output=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo 'no json')"
+fi
+rm -f "$PENDING_R"
+rm -rf "$TMPDIR_R"
+
+# Test R2: pending.md older than 7 days → age warning in context
+PENDING_R=$(mktemp)
+printf 'old draft content\n' > "$PENDING_R"
+touch -d "8 days ago" "$PENDING_R"
+TMPDIR_R=$(mktemp -d)
+INPUT=$(jq -n --arg cwd "$TMPDIR_R" '{"cwd": $cwd}')
+OUTPUT=$(echo "$INPUT" | PENDING_FILE_OVERRIDE="$PENDING_R" bash "$PRE_RUN" 2>/dev/null)
+if echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null | grep -q "days old"; then
+  pass "pre-run: old pending.md → age warning in context"
+else
+  fail "pre-run: old pending.md → age warning in context" \
+       "output=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo 'no json')"
+fi
+rm -f "$PENDING_R"
+rm -rf "$TMPDIR_R"
+
+# Test R3: no pending.md → no pending injection in context
+PENDING_R="/tmp/nonexistent-pending-$$"
+TMPDIR_R=$(mktemp -d)
+INPUT=$(jq -n --arg cwd "$TMPDIR_R" '{"cwd": $cwd}')
+OUTPUT=$(echo "$INPUT" | PENDING_FILE_OVERRIDE="$PENDING_R" bash "$PRE_RUN" 2>/dev/null)
+CONTEXT=$(echo "$OUTPUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo "")
+if [ -z "$CONTEXT" ] || ! echo "$CONTEXT" | grep -q "pending session review"; then
+  pass "pre-run: no pending.md → no pending injection"
+else
+  fail "pre-run: no pending.md → no pending injection" \
+       "context unexpectedly contains pending content"
+fi
+rm -rf "$TMPDIR_R"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "Results: $PASS passed, $FAIL failed (expected: 20 original pass, T1+T3 fail (script missing), T2+T4 pass vacuously)"
+echo "Results: $PASS passed, $FAIL failed"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
