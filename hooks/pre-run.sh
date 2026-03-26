@@ -23,7 +23,7 @@ PENDING_FILE="${PENDING_FILE_OVERRIDE:-/home/sirrasel/claude-projects/dev-ai-con
 if [ -f "$PENDING_FILE" ]; then
   PENDING_CONTENT=$(cat "$PENDING_FILE")
   # Calculate age in days
-  FILE_EPOCH=$(date -r "$PENDING_FILE" +%s 2>/dev/null || stat -c %Y "$PENDING_FILE" 2>/dev/null || echo 0)
+  FILE_EPOCH=$(stat -c %Y "$PENDING_FILE" 2>/dev/null || date -r "$PENDING_FILE" +%s 2>/dev/null || echo 0)
   NOW_EPOCH=$(date +%s)
   FILE_AGE=$(( (NOW_EPOCH - FILE_EPOCH) / 86400 ))
   AGE_WARN=""
