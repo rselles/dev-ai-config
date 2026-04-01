@@ -203,6 +203,10 @@ When working in a project, any language- or tooling-specific rules discovered
 (e.g. how to run tests, venv paths, binary locations, linter commands) must be
 added to that project's `AGENTS.md` (or equivalent). Do not store them only in private memory.
 
+When creating a repo-level config file, always name it `AGENTS.md` and create a `CLAUDE.md`
+symlink pointing to it — never create `CLAUDE.md` directly. `AGENTS.md` is the canonical,
+tool-agnostic file; `CLAUDE.md` is a compatibility alias.
+
 ## Anti-Patterns to Avoid
 - Writing implementation before tests
 - Skipping tests for "simple" changes
