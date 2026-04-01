@@ -1,6 +1,6 @@
 ---
 name: self-correction
-description: Fires when the user corrects the assistant — redirects, says "no not that", or changes the approach mid-task. Records the lesson and applies the pattern going forward.
+description: Fires when the user corrects the assistant — redirects, says "no not that", or changes the approach mid-task. Also fires after diagnosing and fixing a production bug via VPS logs. Records the lesson and applies the pattern going forward.
 user-invocable: false
 ---
 
@@ -8,11 +8,18 @@ user-invocable: false
 
 ## When This Applies
 
-A user correction has just occurred. Signs:
+Either of these has just occurred:
+
+**User correction:**
 - "No, not that — do X instead"
 - "Stop, that's wrong"
 - "Actually, let me redirect you"
 - Any explicit redirect or correction of your approach
+
+**Bug fixed via VPS logs:**
+- Used `vps-log-review` to diagnose a production bug
+- Root cause was identified and a fix was applied
+- The bug reveals a pattern that should not recur
 
 ## Process
 
