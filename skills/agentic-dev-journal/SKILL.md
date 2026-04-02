@@ -105,6 +105,24 @@ After writing:
    ```
 3. Report the commit SHA and what was recorded
 
+## Article Drafting
+
+When writing a blog post or article:
+
+**Always produce both versions in the same session:**
+1. `drafts/NN-<slug>-medium.md` — full article (3,000–5,000 words)
+2. `drafts/NN-<slug>-linkedin.md` — condensed LinkedIn version (~700–800 words)
+
+The LinkedIn version is not a summary — it's a standalone post. It hooks the reader, hits the 3–4 most important points, and ends with a link to the full article. Same conversational, first-person tone. Use `---` dividers and bold section labels.
+
+Naming convention: `NN` is the next sequential number in `drafts/`. Check existing files before numbering.
+
+After both drafts exist, commit both in one commit:
+```
+git -C <journal-repo-path> add drafts/
+git -C <journal-repo-path> commit -m "draft: article NN — <slug>" -m "<one-line description>" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+```
+
 ## Finding the Journal Repo
 
 The journal lives in a separate git repo called `agentic-dev-journal`. Locate it relative to known project directories (e.g., `~/claude-projects/agentic-dev-journal/`) or ask the user for the path if unknown.

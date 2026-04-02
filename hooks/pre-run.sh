@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/session-store.sh"
+
 if ! command -v jq >/dev/null 2>&1; then
   echo "pre-run.sh: jq is required but not installed" >&2
   exit 1
@@ -19,7 +22,11 @@ if [ -f "$LESSONS" ]; then
 fi
 
 # Inject pending session review draft if present
-PENDING_FILE="${PENDING_FILE_OVERRIDE:-/home/sirrasel/claude-projects/dev-ai-config/session-review/pending.md}"
+PENDING_FILE="${PENDING_FILE_OVERRIDE:-}"
+if [ -z "$PENDING_FILE" ]; then
+  PENDING_DIR="${SESSION_REVIEW_DIR_OVERRIDE:-$SCRIPT_DIR/../session-review/pending}"
+  PENDING_FILE=$(pending_file_path "$PENDING_DIR" "$CWD" 2>/dev/null || true)
+fi
 if [ -f "$PENDING_FILE" ]; then
   PENDING_CONTENT=$(cat "$PENDING_FILE")
   # Calculate age in days

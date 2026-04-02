@@ -3,8 +3,15 @@
 # Must exit 0 always. Never block session end.
 set -uo pipefail
 
-SIGNALS_FILE="${SIGNALS_OVERRIDE:-/tmp/claude-session-signals}"
-PENDING_FILE="${PENDING_OVERRIDE:-/home/sirrasel/claude-projects/dev-ai-config/session-review/pending.md}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/session-store.sh"
+
+DEFAULT_SIGNALS_DIR="${SCRIPT_DIR}/../session-review/signals"
+DEFAULT_PENDING_DIR="${SCRIPT_DIR}/../session-review/pending"
+SIGNALS_DIR="${SIGNALS_DIR_OVERRIDE:-$DEFAULT_SIGNALS_DIR}"
+PENDING_DIR="${SESSION_REVIEW_DIR_OVERRIDE:-$DEFAULT_PENDING_DIR}"
+SIGNALS_FILE="${SIGNALS_OVERRIDE:-}"
+PENDING_FILE="${PENDING_OVERRIDE:-}"
 SKILLS_DIR="${SKILLS_DIR_OVERRIDE:-$HOME/.claude/skills}"
 AGENTS_MD="${AGENTS_MD_OVERRIDE:-/home/sirrasel/claude-projects/dev-ai-config/AGENTS.md}"
 CWD_OVERRIDE="${CWD_OVERRIDE:-}"
@@ -19,17 +26,22 @@ if [ "$(echo "$INPUT" | jq -r '.stop_hook_active // false')" = "true" ]; then
 fi
 
 # No signals → nothing to do
+# Extract CWD for project-specific target
+SESSION_CWD="${CWD_OVERRIDE:-$(echo "$INPUT" | jq -r '.cwd // empty')}"
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
+
+if [ -z "$SIGNALS_FILE" ]; then
+  SIGNALS_FILE=$(signals_file_path "$SIGNALS_DIR" "$TRANSCRIPT_PATH" "$SESSION_CWD") || exit 0
+fi
+
+# No signals → nothing to do
 if [ ! -f "$SIGNALS_FILE" ] || [ ! -s "$SIGNALS_FILE" ]; then
   exit 0
 fi
 
 SIGNALS=$(sort -u "$SIGNALS_FILE")
 
-# Extract CWD for project-specific target
-SESSION_CWD="${CWD_OVERRIDE:-$(echo "$INPUT" | jq -r '.cwd // empty')}"
-
 # Build transcript excerpt (last 200 JSONL lines, extract content fields)
-TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 TRANSCRIPT_EXCERPT=""
 if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
   TRANSCRIPT_EXCERPT=$(tail -n 200 "$TRANSCRIPT_PATH" | jq -r '.content // empty' 2>/dev/null | tail -c 8000 || true)
@@ -114,6 +126,10 @@ case "$ANSWER" in
     rm -f "$TMPFILE"
     ;;
   *)
+    if [ -z "$PENDING_FILE" ]; then
+      mkdir -p "$PENDING_DIR"
+      PENDING_FILE=$(pending_file_path "$PENDING_DIR" "$SESSION_CWD") || exit 0
+    fi
     printf '%s\n' "$DRAFT" > "$PENDING_FILE"
     printf 'Draft saved. Will be shown at next session start.\n'
     ;;

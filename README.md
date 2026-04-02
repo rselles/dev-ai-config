@@ -22,9 +22,12 @@ dev-ai-config/
 ├── hooks/                           # Tool-agnostic hook scripts (bash, jq required)
 │   ├── pre-run.sh                   # SessionStart: inject tasks/lessons.md
 │   ├── pre-commit.sh                # PreToolUse: validate commit message
-│   ├── pre-push.sh                  # PreToolUse: advisory before push
+│   ├── pre-push.sh                  # PreToolUse: block push until tests are confirmed
+│   ├── track-session.sh             # Claude PostToolUse: collect session signals
+│   ├── post-session.sh              # Claude Stop: draft session-end updates
+│   ├── session-store.sh             # Shared helpers for session-scoped state
 │   └── tests/
-│       └── test-hooks.sh            # Automated test suite (20 tests)
+│       └── test-hooks.sh            # Automated hook/config test suite
 ├── claude/                          # Claude Code-specific config
 │   ├── hooks/
 │   │   └── settings-fragment.json   # Merge into ~/.claude/settings.json
@@ -155,6 +158,10 @@ supports hooks with a compatible stdin contract.
 
 **Prerequisites:** `bash`, `jq`
 
+Session-end knowledge capture is currently **Claude-specific**, because
+`post-session.sh` shells out to `claude -p` to draft updates. The commit/push
+and `tasks/lessons.md` hooks remain cross-CLI.
+
 ### What each hook does
 
 | Hook | Event | Blocking? | Rule enforced |
@@ -162,7 +169,9 @@ supports hooks with a compatible stdin contract.
 | `pre-run.sh` | Session start | No | Injects `tasks/lessons.md` into context if present |
 | `pre-commit.sh` | Before bash tool | **Yes** | Blocks commits to `main`/`master`; validates subject ≤50 chars + imperative mood |
 | `pre-commit.sh` | Before bash tool | No (advisory) | Reminds to add Co-Authored-By if missing |
-| `pre-push.sh` | Before bash tool | No (advisory) | Reminds to confirm tests passed |
+| `pre-push.sh` | Before bash tool | **Yes** | Blocks push until tests are confirmed |
+| `track-session.sh` | After tool use | No | Records session signals for later review |
+| `post-session.sh` | Session stop | No | Drafts AGENTS/skill/journal updates from session signals |
 
 ### CLI support
 
@@ -170,7 +179,9 @@ supports hooks with a compatible stdin contract.
 |---|---|---|---|
 | Session start (lessons.md) | ✅ | ✅ | — |
 | Commit validation (blocking) | ✅ | ✅ | — |
-| Push advisory | ✅ | ✅ | — |
+| Push validation | ✅ | ✅ | — |
+| Session signal tracking | ✅ | — | — |
+| Session-end review drafting | ✅ | — | — |
 
 Codex CLI's experimental hooks do not support tool blocking. Rules are enforced
 there via `AGENTS.md` instructions only.
@@ -196,6 +207,11 @@ Scripts read JSON from stdin (provided natively by Claude Code and Gemini CLI):
   Does not handle ANSI-C `$'...'` quoting, `--message=`, or multiple `-m` flags.
   Unparseable messages pass through (conservative).
 - `pre-run.sh` checks only `$cwd/tasks/lessons.md` — no parent directory walk.
+- Claude session capture stores state in session-scoped files derived from
+  `transcript_path` and falls back to `cwd` when no transcript is available.
+  This avoids cross-agent collisions across worktrees, but two concurrent
+  sessions in the same worktree without distinct transcript paths can still
+  share state.
 - Gemini CLI tool name matcher (`run_in_terminal|shell`) may need adjustment
   depending on your Gemini CLI version.
 
@@ -206,8 +222,14 @@ Scripts read JSON from stdin (provided natively by Claude Code and Gemini CLI):
 
 **Hooks (optional):** To enable programmatic rule enforcement, merge
 `claude/hooks/settings-fragment.json` into `~/.claude/settings.json`.
-The fragment adds `SessionStart` and `PreToolUse` hook entries alongside
-any existing hooks. Adjust the absolute script paths to match your checkout.
+The fragment adds `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop` hook
+entries alongside any existing hooks. Adjust the absolute script paths to match
+your checkout. Merge carefully if you already have other `PostToolUse` hooks;
+keep both entries.
+
+Current session-capture state lives under:
+- `session-review/signals/` for per-session signal files
+- `session-review/pending/` for per-worktree deferred drafts
 
 **Codex**
 - Codex reads `AGENTS.md` from the repo and/or home. Ensure a home-level `AGENTS.md` symlink for global defaults.
@@ -222,7 +244,8 @@ any existing hooks. Adjust the absolute script paths to match your checkout.
 
 **Hooks (optional):** Merge `gemini/hooks/settings-fragment.json` into
 `~/.gemini/settings.json`. Verify the `BeforeTool` matcher regex matches
-your Gemini CLI version's shell tool name.
+your Gemini CLI version's shell tool name. Session-end knowledge capture is not
+wired for Gemini because `post-session.sh` currently depends on `claude -p`.
 
 ## OS Setup
 

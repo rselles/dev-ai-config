@@ -12,6 +12,17 @@
         ]
       }
     ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/post-session.sh"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -23,6 +34,17 @@
           {
             "type": "command",
             "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/pre-push.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/track-session.sh"
           }
         ]
       }

@@ -8,6 +8,7 @@ HOOKS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PRE_COMMIT="$HOOKS_DIR/pre-commit.sh"
 PRE_PUSH="$HOOKS_DIR/pre-push.sh"
 PRE_RUN="$HOOKS_DIR/pre-run.sh"
+CLAUDE_SETTINGS_FRAGMENT="$HOOKS_DIR/../claude/hooks/settings-fragment.json"
 
 PASS=0
 FAIL=0
@@ -163,14 +164,14 @@ fi
 # pre-push tests
 # ---------------------------------------------------------------------------
 
-# Test 12: git push -> exit 0 AND stdout contains "additionalContext"
+# Test 12: git push -> exit 2 AND stdout contains block message
 INPUT=$(jq -n --arg cmd "git push origin main" \
   '{"tool_input": {"command": $cmd}}')
 run_hook "$PRE_PUSH" "$INPUT"
-if [ "$EXIT_CODE" -eq 0 ] && echo "$OUTPUT" | grep -q "additionalContext"; then
-  pass "pre-push: git push -> exit 0 and stdout contains 'additionalContext'"
+if [ "$EXIT_CODE" -eq 2 ] && echo "$OUTPUT" | grep -q "test suite"; then
+  pass "pre-push: git push -> exit 2 and stdout contains block message"
 else
-  fail "pre-push: git push -> exit 0 and stdout contains 'additionalContext'" \
+  fail "pre-push: git push -> exit 2 and stdout contains block message" \
     "exit=$EXIT_CODE output=$(echo "$OUTPUT" | head -1)"
 fi
 
@@ -332,6 +333,21 @@ else
 fi
 cleanup_signals
 
+# Test T5: distinct transcript paths → signals are isolated per session
+SIGNALS_DIR_T=$(mktemp -d)
+INPUT=$(jq -n --arg transcript "/tmp/session-a.jsonl" '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}, "transcript_path": $transcript}')
+SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_T" run_hook "$TRACK" "$INPUT"
+INPUT=$(jq -n --arg transcript "/tmp/session-b.jsonl" '{"tool_name": "Bash", "tool_input": {"command": "ssh rafaelselles ls"}, "transcript_path": $transcript}')
+SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_T" run_hook "$TRACK" "$INPUT"
+SIGNAL_FILE_COUNT=$(find "$SIGNALS_DIR_T" -maxdepth 1 -type f | wc -l | tr -d ' ')
+if [ "$SIGNAL_FILE_COUNT" -eq 2 ]; then
+  pass "track-session: distinct transcript paths → separate signal files"
+else
+  fail "track-session: distinct transcript paths → separate signal files" \
+       "expected 2 signal files, got $SIGNAL_FILE_COUNT"
+fi
+rm -rf "$SIGNALS_DIR_T"
+
 # ---------------------------------------------------------------------------
 # post-session.sh tests
 # ---------------------------------------------------------------------------
@@ -480,6 +496,30 @@ fi
 rm -f "$PENDING_P" "$SIGNALS_P"
 rm -rf "$PROJECT_DIR_P" "$MOCK_CLAUDE_DIR_P"
 
+# Test P8: deferred drafts are isolated by cwd, so one worktree cannot overwrite another
+REVIEW_DIR_P=$(mktemp -d)
+SIGNALS_DIR_P=$(mktemp -d)
+PROJECT_ONE_P=$(mktemp -d)
+PROJECT_TWO_P=$(mktemp -d)
+INPUT=$(jq -n --arg transcript "/tmp/session-one.jsonl" '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}, "transcript_path": $transcript}')
+SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_P" run_hook "$TRACK" "$INPUT"
+INPUT=$(jq -n --arg transcript "/tmp/session-two.jsonl" '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}, "transcript_path": $transcript}')
+SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_P" run_hook "$TRACK" "$INPUT"
+setup_mock_claude "## vps-log-review\nAdd new pattern"
+INPUT=$(jq -n --arg cwd "$PROJECT_ONE_P" --arg transcript "/tmp/session-one.jsonl" '{"stop_hook_active": false, "cwd": $cwd, "transcript_path": $transcript}')
+printf "N\n" | echo "$INPUT" | PATH="$MOCK_CLAUDE_DIR:$PATH" SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_P" SESSION_REVIEW_DIR_OVERRIDE="$REVIEW_DIR_P" bash "$POST_SESSION" 2>/dev/null >/dev/null
+INPUT=$(jq -n --arg cwd "$PROJECT_TWO_P" --arg transcript "/tmp/session-two.jsonl" '{"stop_hook_active": false, "cwd": $cwd, "transcript_path": $transcript}')
+printf "N\n" | echo "$INPUT" | PATH="$MOCK_CLAUDE_DIR:$PATH" SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_P" SESSION_REVIEW_DIR_OVERRIDE="$REVIEW_DIR_P" bash "$POST_SESSION" 2>/dev/null >/dev/null
+cleanup_mock_claude
+PENDING_FILE_COUNT=$(find "$REVIEW_DIR_P" -maxdepth 1 -type f | wc -l | tr -d ' ')
+if [ "$PENDING_FILE_COUNT" -eq 2 ]; then
+  pass "post-session: deferred drafts are isolated by cwd"
+else
+  fail "post-session: deferred drafts are isolated by cwd" \
+       "expected 2 pending draft files, got $PENDING_FILE_COUNT"
+fi
+rm -rf "$REVIEW_DIR_P" "$SIGNALS_DIR_P" "$PROJECT_ONE_P" "$PROJECT_TWO_P"
+
 # ---------------------------------------------------------------------------
 # pre-run.sh pending.md injection tests
 # ---------------------------------------------------------------------------
@@ -529,9 +569,54 @@ else
 fi
 rm -rf "$TMPDIR_R"
 
+# Test R4: pre-run injects only the pending draft for the current cwd
+REVIEW_DIR_R=$(mktemp -d)
+SIGNALS_DIR_R=$(mktemp -d)
+PROJECT_ONE_R=$(mktemp -d)
+PROJECT_TWO_R=$(mktemp -d)
+INPUT=$(jq -n --arg transcript "/tmp/session-r1.jsonl" '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}, "transcript_path": $transcript}')
+SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_R" run_hook "$TRACK" "$INPUT"
+setup_mock_claude "## vps-log-review\nProject one draft"
+INPUT=$(jq -n --arg cwd "$PROJECT_ONE_R" --arg transcript "/tmp/session-r1.jsonl" '{"stop_hook_active": false, "cwd": $cwd, "transcript_path": $transcript}')
+printf "N\n" | echo "$INPUT" | PATH="$MOCK_CLAUDE_DIR:$PATH" SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_R" SESSION_REVIEW_DIR_OVERRIDE="$REVIEW_DIR_R" bash "$POST_SESSION" 2>/dev/null >/dev/null
+cleanup_mock_claude
+INPUT=$(jq -n --arg cwd "$PROJECT_ONE_R" '{"cwd": $cwd}')
+OUTPUT_ONE=$(echo "$INPUT" | SESSION_REVIEW_DIR_OVERRIDE="$REVIEW_DIR_R" bash "$PRE_RUN" 2>/dev/null)
+INPUT=$(jq -n --arg cwd "$PROJECT_TWO_R" '{"cwd": $cwd}')
+OUTPUT_TWO=$(echo "$INPUT" | SESSION_REVIEW_DIR_OVERRIDE="$REVIEW_DIR_R" bash "$PRE_RUN" 2>/dev/null)
+CONTEXT_ONE=$(echo "$OUTPUT_ONE" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo "")
+CONTEXT_TWO=$(echo "$OUTPUT_TWO" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || echo "")
+if echo "$CONTEXT_ONE" | grep -q "Project one draft" && ! echo "$CONTEXT_TWO" | grep -q "Project one draft"; then
+  pass "pre-run: injects only the current cwd pending draft"
+else
+  fail "pre-run: injects only the current cwd pending draft" \
+       "context_one='$CONTEXT_ONE' context_two='$CONTEXT_TWO'"
+fi
+rm -rf "$REVIEW_DIR_R" "$SIGNALS_DIR_R" "$PROJECT_ONE_R" "$PROJECT_TWO_R"
+
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
+
+# Config C1: Claude fragment registers PostToolUse tracker
+if jq -e '
+  any(.hooks.PostToolUse[]?.hooks[]?; .command == "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/track-session.sh")
+' "$CLAUDE_SETTINGS_FRAGMENT" >/dev/null 2>&1; then
+  pass "config: Claude fragment registers track-session PostToolUse hook"
+else
+  fail "config: Claude fragment registers track-session PostToolUse hook" \
+       "track-session.sh is not registered in claude/hooks/settings-fragment.json"
+fi
+
+# Config C2: Claude fragment registers Stop hook for post-session review
+if jq -e '
+  any(.hooks.Stop[]?.hooks[]?; .command == "bash /home/sirrasel/claude-projects/dev-ai-config/hooks/post-session.sh")
+' "$CLAUDE_SETTINGS_FRAGMENT" >/dev/null 2>&1; then
+  pass "config: Claude fragment registers post-session Stop hook"
+else
+  fail "config: Claude fragment registers post-session Stop hook" \
+       "post-session.sh is not registered in claude/hooks/settings-fragment.json"
+fi
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

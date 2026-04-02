@@ -13,5 +13,5 @@ if [ -z "$COMMAND" ] || ! echo "$COMMAND" | grep -qE '^git push'; then
   exit 0
 fi
 
-printf '{"hookSpecificOutput":{"additionalContext":"REMINDER: Confirm test suite passed before pushing. If unsure, run tests first."}}\n'
-exit 0
+printf 'Tests must pass before pushing. Run the project test suite and confirm it passes, then retry the push.\n'
+exit 2

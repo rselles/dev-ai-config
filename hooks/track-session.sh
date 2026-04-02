@@ -3,12 +3,24 @@
 # Exit 0 always — never block tool execution.
 set -uo pipefail
 
-SIGNALS_FILE="${SIGNALS_OVERRIDE:-/tmp/claude-session-signals}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/session-store.sh"
+
+DEFAULT_SIGNALS_DIR="${SCRIPT_DIR}/../session-review/signals"
+SIGNALS_DIR="${SIGNALS_DIR_OVERRIDE:-$DEFAULT_SIGNALS_DIR}"
+SIGNALS_FILE="${SIGNALS_OVERRIDE:-}"
 SKILLS_DIR="${SKILLS_DIR_OVERRIDE:-$HOME/.claude/skills}"
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input // {}')
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+
+if [ -z "$SIGNALS_FILE" ]; then
+  mkdir -p "$SIGNALS_DIR"
+  SIGNALS_FILE=$(signals_file_path "$SIGNALS_DIR" "$TRANSCRIPT_PATH" "$CWD") || exit 0
+fi
 
 case "$TOOL_NAME" in
   Skill)
