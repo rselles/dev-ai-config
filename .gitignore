@@ -1,3 +1,4 @@
-docs/plans/
+.codex
+docs/
 .worktrees/
 session-review/pending.md
