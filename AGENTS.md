@@ -227,3 +227,5 @@ If the hook proposes an update, review it critically. Only apply changes that ar
 1. Broadly applicable (not project-specific — those go in the project's CLAUDE.md)
 2. A genuine improvement over existing guidance (not redundant)
 3. Based on a real observed pattern, not a one-off
+
+@RTK.md
