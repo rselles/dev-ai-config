@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# gsearch — run a web search via Gemini CLI, log token savings.
+#
+# Usage: gsearch "query string"
+#   stdout: Gemini's summary (pipe to context.md or let Claude read it)
+#   stderr: per-call savings line
+#   ~/.gemini-gain.log: CSV row appended
+#
+# Environment:
+#   GEMINI_GAIN_LOG  — override log file path (default: ~/.gemini-gain.log)
+
+set -uo pipefail
+
+if [ $# -eq 0 ]; then
+  echo "Usage: gsearch \"query\"" >&2
+  exit 1
+fi
+
+query="$*"
+logfile="${GEMINI_GAIN_LOG:-$HOME/.gemini-gain.log}"
+
+# ── Call Gemini ──────────────────────────────────────────────────────────────
+json=$(gemini -p "$query" --output-format json 2>/dev/null) || {
+  echo "[gsearch] gemini call failed" >&2
+  exit 1
+}
+
+# ── Extract summary ──────────────────────────────────────────────────────────
+# Try jq first; fall back to crude grep/sed if jq is absent or fails.
+summary=$(echo "$json" | jq -r '.response // empty' 2>/dev/null) || summary=""
+input_tok=$(echo "$json" | jq -r '[.stats.models[].tokens.input] | add // empty' 2>/dev/null) || input_tok=""
+output_tok=$(echo "$json" | jq -r '[.stats.models[].tokens.candidates] | add // empty' 2>/dev/null) || output_tok=""
+
+if [ -z "$summary" ]; then
+  summary=$(echo "$json" | grep -o '"response": *"[^"]*"' | sed 's/"response": *"//;s/"$//')
+fi
+
+# ── Compute summary token estimate ──────────────────────────────────────────
+summary_bytes=$(printf '%s' "$summary" | wc -c)
+summary_tok=$(( summary_bytes / 4 ))
+
+# ── Write summary to stdout ──────────────────────────────────────────────────
+printf '%s\n' "$summary"
+
+# ── Print savings line to stderr ─────────────────────────────────────────────
+if [ -n "$input_tok" ]; then
+  printf '[gsearch] "%s"\n          gemini input ~%s tok → summary ~%s tok\n' \
+    "$query" "$input_tok" "$summary_tok" >&2
+fi
+
+# ── Append CSV row ───────────────────────────────────────────────────────────
+timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+# columns: timestamp,mode,target,raw_tokens,summary_tokens,gemini_input_tokens,gemini_output_tokens
+printf '%s,gsearch,%s,,%s,%s,%s\n' \
+  "$timestamp" \
+  "$(printf '%s' "$query" | head -c 80)" \
+  "$summary_tok" \
+  "${input_tok}" \
+  "${output_tok}" \
+  >> "$logfile"

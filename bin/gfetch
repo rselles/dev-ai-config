@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# gfetch — fetch and summarise a URL via Gemini CLI, log token savings.
+#
+# Usage: gfetch <url> [extraction prompt]
+#   stdout: Gemini's summary (pipe to context.md or let Claude read it)
+#   stderr: per-call savings line with raw→summary delta
+#   ~/.gemini-gain.log: CSV row appended
+#
+# Environment:
+#   GEMINI_GAIN_LOG  — override log file path (default: ~/.gemini-gain.log)
+
+set -uo pipefail
+
+if [ $# -eq 0 ]; then
+  echo "Usage: gfetch <url> [extraction prompt]" >&2
+  exit 1
+fi
+
+url="$1"
+shift
+extraction="${*:-summarise the key content}"
+logfile="${GEMINI_GAIN_LOG:-$HOME/.gemini-gain.log}"
+
+# ── Baseline: raw page byte count ────────────────────────────────────────────
+raw_bytes=$(curl -sL --max-time 15 "$url" 2>/dev/null | wc -c) || raw_bytes=0
+raw_tok=$(( raw_bytes / 4 ))
+
+# ── Call Gemini ──────────────────────────────────────────────────────────────
+prompt="Fetch ${url} and ${extraction}"
+json=$(gemini -p "$prompt" --output-format json 2>/dev/null) || {
+  echo "[gfetch] gemini call failed" >&2
+  exit 1
+}
+
+# ── Extract summary and token counts ─────────────────────────────────────────
+# Try jq first; fall back to crude grep/sed if jq is absent or fails.
+summary=$(echo "$json" | jq -r '.response // empty' 2>/dev/null) || summary=""
+input_tok=$(echo "$json" | jq -r '[.stats.models[].tokens.input] | add // empty' 2>/dev/null) || input_tok=""
+output_tok=$(echo "$json" | jq -r '[.stats.models[].tokens.candidates] | add // empty' 2>/dev/null) || output_tok=""
+
+if [ -z "$summary" ]; then
+  summary=$(echo "$json" | grep -o '"response": *"[^"]*"' | sed 's/"response": *"//;s/"$//')
+fi
+
+# ── Compute summary token estimate ──────────────────────────────────────────
+summary_bytes=$(printf '%s' "$summary" | wc -c)
+summary_tok=$(( summary_bytes / 4 ))
+
+# ── Write summary to stdout ──────────────────────────────────────────────────
+printf '%s\n' "$summary"
+
+# ── Print savings line to stderr ─────────────────────────────────────────────
+if [ "$raw_tok" -gt 0 ] && [ "$summary_tok" -gt 0 ]; then
+  saved=$(( raw_tok - summary_tok ))
+  if [ "$raw_tok" -gt 0 ]; then
+    pct=$(( saved * 100 / raw_tok ))
+  else
+    pct=0
+  fi
+  printf '[gfetch] %s\n         raw ~%s tok → summary ~%s tok (saved ~%s, %s%%)\n' \
+    "$url" "$raw_tok" "$summary_tok" "$saved" "$pct" >&2
+else
+  printf '[gfetch] %s\n         raw ~%s tok → summary ~%s tok\n' \
+    "$url" "$raw_tok" "$summary_tok" >&2
+fi
+
+# ── Append CSV row ───────────────────────────────────────────────────────────
+timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+# columns: timestamp,mode,target,raw_tokens,summary_tokens,gemini_input_tokens,gemini_output_tokens
+printf '%s,gfetch,%s,%s,%s,%s,%s\n' \
+  "$timestamp" \
+  "$url" \
+  "$raw_tok" \
+  "$summary_tok" \
+  "${input_tok}" \
+  "${output_tok}" \
+  >> "$logfile"

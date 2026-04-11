@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# gemini-gain — show cumulative token savings from gsearch/gfetch calls.
+#
+# Usage: gemini-gain
+#
+# Environment:
+#   GEMINI_GAIN_LOG  — override log file path (default: ~/.gemini-gain.log)
+
+set -uo pipefail
+
+logfile="${GEMINI_GAIN_LOG:-$HOME/.gemini-gain.log}"
+
+if [ ! -f "$logfile" ] || [ ! -s "$logfile" ]; then
+  echo "No data yet. Run gsearch or gfetch to start tracking savings."
+  exit 0
+fi
+
+# CSV columns (1-indexed):
+#   1=timestamp 2=mode 3=target 4=raw_tokens 5=summary_tokens
+#   6=gemini_input_tokens 7=gemini_output_tokens
+
+awk -F',' '
+BEGIN {
+  modes[0] = ""  # just to declare the array
+}
+{
+  mode = $2
+  raw    = ($4 + 0)
+  summ   = ($5 + 0)
+  g_in   = ($6 + 0)
+  g_out  = ($7 + 0)
+
+  calls[mode]++
+  total_raw[mode]    += raw
+  total_summ[mode]   += summ
+  total_g_in[mode]   += g_in
+  total_g_out[mode]  += g_out
+}
+END {
+  if (length(calls) == 0) {
+    print "No data yet."
+    exit 0
+  }
+
+  printf "%-10s  %6s  %14s  %14s  %14s  %7s\n",
+    "mode", "calls", "gemini_input", "summary_tok", "saved_tok", "saved%"
+  printf "%-10s  %6s  %14s  %14s  %14s  %7s\n",
+    "----------", "------", "--------------", "--------------", "--------------", "-------"
+
+  total_calls = 0
+  total_gi    = 0
+  total_s     = 0
+  total_sv    = 0
+  total_rw    = 0
+
+  for (m in calls) {
+    saved = total_raw[m] - total_summ[m]
+    pct   = (total_raw[m] > 0) ? int(saved * 100 / total_raw[m]) : 0
+    printf "%-10s  %6d  %14d  %14d  %14d  %6d%%\n",
+      m, calls[m], total_g_in[m], total_summ[m], saved, pct
+    total_calls += calls[m]
+    total_gi    += total_g_in[m]
+    total_s     += total_summ[m]
+    total_sv    += saved
+    total_rw    += total_raw[m]
+  }
+
+  printf "%-10s  %6s  %14s  %14s  %14s  %7s\n",
+    "----------", "------", "--------------", "--------------", "--------------", "-------"
+  total_pct = (total_rw > 0) ? int(total_sv * 100 / total_rw) : 0
+  printf "%-10s  %6d  %14d  %14d  %14d  %6d%%\n",
+    "TOTAL", total_calls, total_gi, total_s, total_sv, total_pct
+}
+' "$logfile"

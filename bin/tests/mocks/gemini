@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Mock gemini CLI — returns a fixed JSON response matching the real schema.
+# Recognises --output-format json; ignores all other flags.
+# Override MOCK_GEMINI_RESPONSE to change the response text in tests.
+
+response="${MOCK_GEMINI_RESPONSE:-Mock Gemini response text for testing purposes.}"
+
+cat <<EOF
+{
+  "session_id": "mock-session-id",
+  "response": "${response}",
+  "stats": {
+    "models": {
+      "gemini-3-flash-preview": {
+        "api": { "totalRequests": 1, "totalErrors": 0, "totalLatencyMs": 500 },
+        "tokens": {
+          "input": 7224,
+          "prompt": 7224,
+          "candidates": 24,
+          "total": 7248,
+          "cached": 0,
+          "thoughts": 0,
+          "tool": 0
+        }
+      }
+    },
+    "tools": { "totalCalls": 0 },
+    "files": { "totalLinesAdded": 0, "totalLinesRemoved": 0 }
+  }
+}
+EOF
