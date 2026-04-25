@@ -52,11 +52,7 @@ printf '%s\n' "$summary"
 # ── Print savings line to stderr ─────────────────────────────────────────────
 if [ "$raw_tok" -gt 0 ] && [ "$summary_tok" -gt 0 ]; then
   saved=$(( raw_tok - summary_tok ))
-  if [ "$raw_tok" -gt 0 ]; then
-    pct=$(( saved * 100 / raw_tok ))
-  else
-    pct=0
-  fi
+  pct=$(( saved * 100 / raw_tok ))
   printf '[gfetch] %s\n         raw ~%s tok → summary ~%s tok (saved ~%s, %s%%)\n' \
     "$url" "$raw_tok" "$summary_tok" "$saved" "$pct" >&2
 else
@@ -66,8 +62,8 @@ fi
 
 # ── Append CSV row ───────────────────────────────────────────────────────────
 timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-# columns: timestamp,mode,target,raw_tokens,summary_tokens,gemini_input_tokens,gemini_output_tokens
-printf '%s,gfetch,%s,%s,%s,%s,%s\n' \
+# columns (tab-separated): timestamp  mode  target  raw_tokens  summary_tokens  gemini_input_tokens  gemini_output_tokens
+printf '%s\tgfetch\t%s\t%s\t%s\t%s\t%s\n' \
   "$timestamp" \
   "$url" \
   "$raw_tok" \

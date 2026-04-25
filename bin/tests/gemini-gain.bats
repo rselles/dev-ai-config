@@ -17,12 +17,12 @@ teardown() {
 }
 
 _write_gsearch_row() {
-  # timestamp,mode,target,raw_tokens,summary_tokens,gemini_input_tokens,gemini_output_tokens
-  echo "2026-04-12T10:00:00Z,gsearch,what is Rust,,150,7224,24" >> "$GEMINI_GAIN_LOG"
+  # tab-separated: timestamp  mode  target  raw_tokens  summary_tokens  gemini_input_tokens  gemini_output_tokens
+  printf '2026-04-12T10:00:00Z\tgsearch\twhat is Rust\t\t150\t7224\t24\n' >> "$GEMINI_GAIN_LOG"
 }
 
 _write_gfetch_row() {
-  echo "2026-04-12T10:01:00Z,gfetch,https://example.com/api,24200,612,7224,24" >> "$GEMINI_GAIN_LOG"
+  printf '2026-04-12T10:01:00Z\tgfetch\thttps://example.com/api\t24200\t612\t7224\t24\n' >> "$GEMINI_GAIN_LOG"
 }
 
 # AC1 — cumulative totals

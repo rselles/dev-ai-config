@@ -46,12 +46,15 @@ printf '%s\n' "$summary"
 if [ -n "$input_tok" ]; then
   printf '[gsearch] "%s"\n          gemini input ~%s tok → summary ~%s tok\n' \
     "$query" "$input_tok" "$summary_tok" >&2
+else
+  printf '[gsearch] "%s"\n          summary ~%s tok\n' \
+    "$query" "$summary_tok" >&2
 fi
 
 # ── Append CSV row ───────────────────────────────────────────────────────────
 timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-# columns: timestamp,mode,target,raw_tokens,summary_tokens,gemini_input_tokens,gemini_output_tokens
-printf '%s,gsearch,%s,,%s,%s,%s\n' \
+# columns (tab-separated): timestamp  mode  target  raw_tokens  summary_tokens  gemini_input_tokens  gemini_output_tokens
+printf '%s\tgsearch\t%s\t\t%s\t%s\t%s\n' \
   "$timestamp" \
   "$(printf '%s' "$query" | head -c 80)" \
   "$summary_tok" \

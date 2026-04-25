@@ -59,22 +59,26 @@ teardown() {
 @test "gfetch CSV row has correct mode field" {
   "$SCRIPT" "https://example.com/api" >/dev/null
   row=$(cat "$GEMINI_GAIN_LOG")
-  [[ "$row" == *",gfetch,"* ]]
+  [[ "$row" == *$'\t'gfetch$'\t'* ]]
 }
 
 @test "gfetch CSV row has non-empty raw_tokens field" {
   "$SCRIPT" "https://example.com/api" >/dev/null
   row=$(cat "$GEMINI_GAIN_LOG")
   # raw_tokens is the 4th column — should be a number > 0
-  raw_tok=$(echo "$row" | cut -d',' -f4)
+  raw_tok=$(printf '%s' "$row" | cut -d$'\t' -f4)
   [ -n "$raw_tok" ]
   [ "$raw_tok" -gt 0 ]
 }
 
 # AC4 — extraction prompt is forwarded to Gemini
-@test "gfetch accepts an optional extraction prompt without error" {
+@test "gfetch forwards extraction prompt to Gemini call" {
+  export MOCK_GEMINI_ARGS_FILE
+  MOCK_GEMINI_ARGS_FILE="$(mktemp)"
   run "$SCRIPT" "https://example.com/api" "list the auth endpoints"
   [ "$status" -eq 0 ]
+  grep -q "list the auth endpoints" "$MOCK_GEMINI_ARGS_FILE"
+  rm -f "$MOCK_GEMINI_ARGS_FILE"
 }
 
 # AC5 — graceful degradation when jq is missing
@@ -91,7 +95,7 @@ teardown() {
   rm -rf "$no_jq"
 }
 
-@test "gfetch logs a row even when jq is missing" {
+@test "gfetch logs a row with blank token fields when jq is missing" {
   local no_jq
   no_jq="$(mktemp -d)"
   printf '#!/usr/bin/env bash\nexit 127\n' > "$no_jq/jq"
@@ -99,5 +103,10 @@ teardown() {
   PATH="$no_jq:$MOCKS:$(echo "$PATH" | tr ':' '\n' | grep -v "$MOCKS" | tr '\n' ':')"
   "$SCRIPT" "https://example.com/api" >/dev/null
   [ "$(wc -l < "$GEMINI_GAIN_LOG")" -eq 1 ]
+  row=$(cat "$GEMINI_GAIN_LOG")
+  g_in=$(printf '%s' "$row" | cut -d$'\t' -f6)
+  g_out=$(printf '%s' "$row" | cut -d$'\t' -f7)
+  [ -z "$g_in" ]
+  [ -z "$g_out" ]
   rm -rf "$no_jq"
 }

@@ -54,7 +54,7 @@ teardown() {
 @test "gsearch CSV row has correct mode field" {
   "$SCRIPT" "what is Rust" >/dev/null
   row=$(cat "$GEMINI_GAIN_LOG")
-  [[ "$row" == *",gsearch,"* ]]
+  [[ "$row" == *$'\t'gsearch$'\t'* ]]
 }
 
 @test "gsearch CSV row contains gemini input token count" {
@@ -65,21 +65,21 @@ teardown() {
 }
 
 # AC4 — graceful degradation when jq is missing
-@test "gsearch still outputs response when jq is missing" {
+@test "gsearch still outputs response and stderr when jq is missing" {
   export MOCK_GEMINI_RESPONSE="Fallback response."
-  # Shadow jq with a no-op that exits non-zero
   local no_jq
   no_jq="$(mktemp -d)"
   printf '#!/usr/bin/env bash\nexit 127\n' > "$no_jq/jq"
   chmod +x "$no_jq/jq"
   PATH="$no_jq:$MOCKS:$(echo "$PATH" | tr ':' '\n' | grep -v "$MOCKS" | tr '\n' ':')"
-  run "$SCRIPT" "what is Rust"
+  run --separate-stderr "$SCRIPT" "what is Rust"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Fallback response."* ]]
+  [[ "$stderr" == *"[gsearch]"* ]]
   rm -rf "$no_jq"
 }
 
-@test "gsearch logs a row even when jq is missing" {
+@test "gsearch logs a row with blank token fields when jq is missing" {
   local no_jq
   no_jq="$(mktemp -d)"
   printf '#!/usr/bin/env bash\nexit 127\n' > "$no_jq/jq"
@@ -87,6 +87,11 @@ teardown() {
   PATH="$no_jq:$MOCKS:$(echo "$PATH" | tr ':' '\n' | grep -v "$MOCKS" | tr '\n' ':')"
   "$SCRIPT" "what is Rust" >/dev/null
   [ "$(wc -l < "$GEMINI_GAIN_LOG")" -eq 1 ]
+  row=$(cat "$GEMINI_GAIN_LOG")
+  g_in=$(printf '%s' "$row" | cut -d$'\t' -f6)
+  g_out=$(printf '%s' "$row" | cut -d$'\t' -f7)
+  [ -z "$g_in" ]
+  [ -z "$g_out" ]
   rm -rf "$no_jq"
 }
 

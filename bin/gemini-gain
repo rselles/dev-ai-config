@@ -15,14 +15,11 @@ if [ ! -f "$logfile" ] || [ ! -s "$logfile" ]; then
   exit 0
 fi
 
-# CSV columns (1-indexed):
+# Log columns (tab-separated, 1-indexed):
 #   1=timestamp 2=mode 3=target 4=raw_tokens 5=summary_tokens
 #   6=gemini_input_tokens 7=gemini_output_tokens
 
-awk -F',' '
-BEGIN {
-  modes[0] = ""  # just to declare the array
-}
+awk -F'\t' '
 {
   mode = $2
   raw    = ($4 + 0)
@@ -54,7 +51,7 @@ END {
   total_rw    = 0
 
   for (m in calls) {
-    saved = total_raw[m] - total_summ[m]
+    saved = (total_raw[m] > 0) ? total_raw[m] - total_summ[m] : 0
     pct   = (total_raw[m] > 0) ? int(saved * 100 / total_raw[m]) : 0
     printf "%-10s  %6d  %14d  %14d  %14d  %6d%%\n",
       m, calls[m], total_g_in[m], total_summ[m], saved, pct

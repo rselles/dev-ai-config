@@ -5,6 +5,10 @@
 
 response="${MOCK_GEMINI_RESPONSE:-Mock Gemini response text for testing purposes.}"
 
+if [ -n "${MOCK_GEMINI_ARGS_FILE:-}" ]; then
+  printf '%s\n' "$@" > "$MOCK_GEMINI_ARGS_FILE"
+fi
+
 cat <<EOF
 {
   "session_id": "mock-session-id",
