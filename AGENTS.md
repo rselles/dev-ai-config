@@ -93,6 +93,8 @@ Use the `agentic-dev-journal` skill for significant events: incidents, architect
 - Match existing code style exactly
 - One logical change per commit scope
 - No unrelated cleanup or refactoring
+- No speculative features, unrequested flexibility, or error handling for impossible scenarios
+- Unrelated dead code: flag it, don't remove it
 - If a fix feels hacky, find the root cause instead
 
 ### Definition of Done
@@ -180,7 +182,7 @@ git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: Claude So
 
 ### Always Ask First For
 - **Acceptance criteria** (if not provided)
-- Ambiguous requirements
+- Ambiguous requirements — don't silently pick an interpretation
 - Multiple valid approaches with tradeoffs
 
 ### Proceed Autonomously When
