@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: "House planning workflow — plans saved to docs/plans/, repo-visibility check before committing, Given/When/Then criteria. Use this instead of superpowers:writing-plans when you have a spec or requirements for a multi-step task, before touching code."
 ---
 
 # Writing Plans

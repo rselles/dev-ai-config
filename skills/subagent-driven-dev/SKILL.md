@@ -1,6 +1,6 @@
 ---
 name: subagent-driven-dev
-description: Use when executing implementation plans with independent tasks in the current session
+description: "House subagent workflow — feature branch, tasks/lessons.md context, spec-then-quality review. Use this instead of superpowers:subagent-driven-development when executing implementation plans with independent tasks in the current session."
 ---
 
 # Subagent-Driven Development

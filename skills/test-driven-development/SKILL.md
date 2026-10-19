@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: "House TDD workflow — Given/When/Then acceptance criteria and ≥90% coverage. Use this instead of superpowers:test-driven-development when implementing any feature or bugfix, before writing implementation code."
 ---
 
 # Test-Driven Development (TDD)

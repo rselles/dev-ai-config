@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "Use before any creative work — creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: "House brainstorming workflow — personal-project scale, designs saved to docs/plans/. Use this instead of superpowers:brainstorming before creative work — creating features, building components, adding functionality, or changing intended behavior. Not for bug fixes, which go through systematic-debugging."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -12,6 +12,8 @@ Start by understanding the current project context, then ask questions one at a 
 <HARD-GATE>
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
 </HARD-GATE>
+
+Bug fixes are out of scope: the bug report is the spec (see systematic-debugging).
 
 ## Anti-Pattern: "This Is Too Simple To Need A Design"
 
