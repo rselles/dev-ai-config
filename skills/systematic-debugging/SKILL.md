@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+description: "House debugging workflow — root cause first, failing test via TDD, lessons recorded in tasks/lessons.md. Use this instead of superpowers:systematic-debugging when encountering any bug, test failure, or unexpected behavior, before proposing fixes."
 ---
 
 # Systematic Debugging
