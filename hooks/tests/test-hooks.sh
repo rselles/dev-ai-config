@@ -164,18 +164,62 @@ fi
 # pre-push tests
 # ---------------------------------------------------------------------------
 
-# Test 12: git push -> exit 2 AND stdout contains block message
-INPUT=$(jq -n --arg cmd "git push origin main" \
-  '{"tool_input": {"command": $cmd}}')
+PP_TMPDIR_BASE=$(mktemp -d)
+
+_pp_make_python_project() {
+  local dir="$1"
+  local test_body="$2"
+  mkdir -p "$dir/tests"
+  printf '[project]\nname = "fixture"\nversion = "0.0.1"\n' > "$dir/pyproject.toml"
+  printf '%s\n' "$test_body" > "$dir/tests/test_fixture.py"
+  # asdf resolves the `python` shim from a local .tool-versions, same as
+  # real project dirs (recetario, arguiano) — fixtures need one too.
+  if command -v asdf >/dev/null 2>&1; then
+    local py_version
+    py_version=$(asdf list python 2>/dev/null | tail -n1 | tr -d ' ')
+    [ -n "$py_version" ] && printf 'python %s\n' "$py_version" > "$dir/.tool-versions"
+  fi
+}
+
+# Test 12: git push in a Python project with a passing test suite -> exit 0
+PP_PASS_DIR="$PP_TMPDIR_BASE/passing"
+_pp_make_python_project "$PP_PASS_DIR" $'def test_ok():\n    assert True'
+INPUT=$(jq -n --arg cmd "git push origin main" --arg cwd "$PP_PASS_DIR" \
+  '{"tool_input": {"command": $cmd}, "cwd": $cwd}')
 run_hook "$PRE_PUSH" "$INPUT"
-if [ "$EXIT_CODE" -eq 2 ] && echo "$OUTPUT" | grep -q "test suite"; then
-  pass "pre-push: git push -> exit 2 and stdout contains block message"
+if [ "$EXIT_CODE" -eq 0 ]; then
+  pass "pre-push: passing pytest suite -> exit 0"
 else
-  fail "pre-push: git push -> exit 2 and stdout contains block message" \
-    "exit=$EXIT_CODE output=$(echo "$OUTPUT" | head -1)"
+  fail "pre-push: passing pytest suite -> exit 0" "exit=$EXIT_CODE output='$OUTPUT'"
 fi
 
-# Test 13: Non-push command -> exit 0 AND stdout is empty
+# Test 13: git push in a Python project with a failing test suite -> exit 2, message shown
+PP_FAIL_DIR="$PP_TMPDIR_BASE/failing"
+_pp_make_python_project "$PP_FAIL_DIR" $'def test_broken():\n    assert False'
+INPUT=$(jq -n --arg cmd "git push origin main" --arg cwd "$PP_FAIL_DIR" \
+  '{"tool_input": {"command": $cmd}, "cwd": $cwd}')
+run_hook "$PRE_PUSH" "$INPUT"
+if [ "$EXIT_CODE" -eq 2 ] && echo "$OUTPUT" | grep -qi "fail"; then
+  pass "pre-push: failing pytest suite -> exit 2 with failure output"
+else
+  fail "pre-push: failing pytest suite -> exit 2 with failure output" \
+    "exit=$EXIT_CODE output=$(echo "$OUTPUT" | head -3)"
+fi
+
+# Test 14: git push in a directory with no recognized test runner -> exit 0 (can't enforce)
+PP_NONE_DIR="$PP_TMPDIR_BASE/no-project"
+mkdir -p "$PP_NONE_DIR"
+INPUT=$(jq -n --arg cmd "git push origin main" --arg cwd "$PP_NONE_DIR" \
+  '{"tool_input": {"command": $cmd}, "cwd": $cwd}')
+run_hook "$PRE_PUSH" "$INPUT"
+if [ "$EXIT_CODE" -eq 0 ]; then
+  pass "pre-push: no recognized test runner -> exit 0 (pass through)"
+else
+  fail "pre-push: no recognized test runner -> exit 0 (pass through)" \
+    "exit=$EXIT_CODE output='$OUTPUT'"
+fi
+
+# Test 15: Non-push command -> exit 0 AND stdout is empty
 INPUT=$(jq -n --arg cmd "git status" \
   '{"tool_input": {"command": $cmd}}')
 run_hook "$PRE_PUSH" "$INPUT"
@@ -185,6 +229,8 @@ else
   fail "pre-push: non-push command -> exit 0 and empty stdout" \
     "exit=$EXIT_CODE output='$OUTPUT'"
 fi
+
+rm -rf "$PP_TMPDIR_BASE"
 
 # ---------------------------------------------------------------------------
 # pre-run tests
