@@ -110,12 +110,12 @@ bash scripts/setup-skills.sh --project /path/to/project
 
 ### CLI Support Matrix
 
-| Feature | Claude Code | Gemini CLI (v0.26+) | Codex CLI | Antigravity |
-|---------|-------------|---------------------|-----------|-------------|
-| SKILL.md format | ✅ Native | ✅ Native | As prompts | ✅ Native |
-| Skill auto-discovery | ✅ `~/.claude/skills/` | ✅ `~/.gemini/skills/` | ❌ Manual | ✅ `.agents/skills/` |
-| User-invocable (`/skill`) | ✅ `Skill` tool | ✅ `activate_skill` | ❌ | ✅ |
-| Install type | Symlink dir | Symlink dir | Symlink SKILL.md as `<name>.md` | Symlink dir (project-level) |
+| Feature | Claude Code | Gemini CLI (v0.26+) | Codex CLI | Antigravity | Copilot CLI |
+|---------|-------------|---------------------|-----------|-------------|-------------|
+| SKILL.md format | ✅ Native | ✅ Native | As prompts | ✅ Native | Via plugins |
+| Skill auto-discovery | ✅ `~/.claude/skills/` | ✅ `~/.gemini/skills/` | ❌ Manual | ✅ `.agents/skills/` | Via plugins |
+| User-invocable (`/skill`) | ✅ `Skill` tool | ✅ `activate_skill` | ❌ | ✅ | Via plugins |
+| Install type | Symlink dir | Symlink dir | Symlink SKILL.md as `<name>.md` | Symlink dir (project-level) | Plugin required |
 
 ### OS-Specific Symlink Notes
 
@@ -175,16 +175,19 @@ and `tasks/lessons.md` hooks remain cross-CLI.
 
 ### CLI support
 
-| Hook | Claude Code | Gemini CLI (v0.26+) | Codex CLI |
-|---|---|---|---|
-| Session start (lessons.md) | ✅ | ✅ | — |
-| Commit validation (blocking) | ✅ | ✅ | — |
-| Push validation | ✅ | ✅ | — |
-| Session signal tracking | ✅ | — | — |
-| Session-end review drafting | ✅ | — | — |
+| Hook | Claude Code | Gemini CLI (v0.26+) | Codex CLI | Copilot CLI |
+|---|---|---|---|---|
+| Session start (lessons.md) | ✅ | ✅ | — | Via plugins |
+| Commit validation (blocking) | ✅ | ✅ | — | Via plugins |
+| Push validation | ✅ | ✅ | — | Via plugins |
+| Session signal tracking | ✅ | — | — | — |
+| Session-end review drafting | ✅ | — | — | — |
 
 Codex CLI's experimental hooks do not support tool blocking. Rules are enforced
 there via `AGENTS.md` instructions only.
+
+Copilot CLI has no standalone hook configuration — hooks require a plugin. No
+plugin is available yet; rules from `AGENTS.md` are enforced by instruction only.
 
 ### Script contract
 
@@ -246,6 +249,19 @@ Current session-capture state lives under:
 `~/.gemini/settings.json`. Verify the `BeforeTool` matcher regex matches
 your Gemini CLI version's shell tool name. Session-end knowledge capture is not
 wired for Gemini because `post-session.sh` currently depends on `claude -p`.
+
+**Copilot CLI**
+- Copilot reads `AGENTS.md` from the current project directory natively. No
+  additional setup needed for project-level use — the repo's `AGENTS.md` is
+  picked up automatically when you run `copilot` inside any project.
+- There is no home-level AGENTS.md loading; global defaults must be added to
+  each project's `AGENTS.md` or configured per-project.
+- Skills and hooks require a plugin (`copilot plugin install`). No plugin is
+  available yet — rules from `AGENTS.md` are enforced by instruction only.
+  `setup-skills.sh` does not install skills for Copilot CLI.
+- MCP: persistent MCP server config goes in `~/.copilot/mcp-config.json`.
+- Optionally run `copilot init` to generate `.github/copilot-instructions.md`
+  with codebase-specific guidance (Copilot-native, separate from `AGENTS.md`).
 
 ## OS Setup
 
