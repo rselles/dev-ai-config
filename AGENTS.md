@@ -28,7 +28,7 @@ When reviewing or writing code, actively look for and surface:
 - Synchronous calls that should be async
 - Missing caching where repeated computation occurs
 
-**Anti-patterns**
+**Code Anti-patterns**
 - God classes/functions, circular dependencies
 - Leaky abstractions, inappropriate coupling
 - Copy-paste code, magic numbers/strings
@@ -58,7 +58,7 @@ When reviewing or writing code, actively look for and surface:
 
 ### Workflow for Any Task
 1. **Clarify**: Define acceptance criteria (skip for bug fixes — the breakage is the spec)
-2. **Plan**: Break into testable increments; use plan mode if 3+ steps
+2. **Plan**: Break into testable increments; see When to Use Plan Mode below
 3. **Test First → Implement → Verify → Repeat**
 
 ### Plan Storage
@@ -86,7 +86,7 @@ Use the `agentic-dev-journal` skill for significant events: incidents, architect
 ### Before Writing Code
 1. Acceptance criteria defined ✓
 2. Failing tests written ✓
-3. Read related existing code
+3. Read related existing code — don't guess
 4. Identify patterns already in use
 
 ### While Writing Code
@@ -175,7 +175,7 @@ Whether to commit automatically without being asked is a project-level decision 
 - Use multiple `-m` flags — no heredoc, no ANSI-C `$'...'` quoting:
 
 ```bash
-git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: <MODEL> <noreply@PROVIDER>"
 ```
 
 ## Communication
@@ -189,7 +189,7 @@ git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: Claude So
 - Acceptance criteria are clear
 - Tests define the expected behavior
 - Following established patterns
-- Bug reports: diagnose, write a failing test, fix — no hand-holding needed (see TDD for Bug Fixes)
+- Bug reports: diagnose, write a failing test, fix — no hand-holding needed (see the `test-driven-development` skill → Bug Fix Entry Point)
 
 ### Progress Updates
 - Report test status at milestones
@@ -208,13 +208,6 @@ added to that project's `AGENTS.md` (or equivalent). Do not store them only in p
 When creating a repo-level config file, always name it `AGENTS.md` and create a `CLAUDE.md`
 symlink pointing to it — never create `CLAUDE.md` directly. `AGENTS.md` is the canonical,
 tool-agnostic file; `CLAUDE.md` is a compatibility alias.
-
-## Anti-Patterns to Avoid
-- Writing implementation before tests
-- Skipping tests for "simple" changes
-- Testing implementation details instead of behavior
-- Marking done without running tests
-- Guessing instead of reading code first
 
 ## Self-Improvement Protocol
 

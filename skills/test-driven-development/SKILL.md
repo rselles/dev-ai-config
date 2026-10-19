@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: "House TDD workflow — Given/When/Then acceptance criteria and ≥90% coverage. Use this instead of superpowers:test-driven-development when implementing any feature or bugfix, before writing implementation code."
 ---
 
 # Test-Driven Development (TDD)
@@ -158,16 +158,12 @@ Do NOT ask for acceptance criteria for bugs. The bug report IS the spec.
 | "Need to explore first" | Fine. Throw away exploration, start with TDD. |
 | "TDD will slow me down" | TDD is faster than debugging. |
 
-## Red Flags — STOP and Start Over
+## Red Flags
 
-- Code before test
-- Test passes immediately without implementation
-- Can't explain why test failed
-- Tests added "later"
-- Rationalizing "just this once"
-- Coverage below 90% at completion
-
-**All of these mean: Delete code. Start over with TDD.**
+- Code before test, or tests added "later" → set that code aside and re-derive it from a failing test
+- Test passes immediately without implementation → it checks existing behavior; fix the test
+- Can't explain why the test failed → investigate before implementing
+- Coverage below 90% at completion → add tests for the uncovered behavior
 
 ## When Stuck
 

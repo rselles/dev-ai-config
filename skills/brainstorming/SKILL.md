@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "Use before any creative work — creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: "House brainstorming workflow — personal-project scale, designs saved to docs/plans/. Use this instead of superpowers:brainstorming before creative work — creating features, building components, adding functionality, or changing intended behavior. Not for bug fixes, which go through systematic-debugging."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -12,6 +12,8 @@ Start by understanding the current project context, then ask questions one at a 
 <HARD-GATE>
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
 </HARD-GATE>
+
+Bug fixes are out of scope: the bug report is the spec (see systematic-debugging).
 
 ## Anti-Pattern: "This Is Too Simple To Need A Design"
 
@@ -50,7 +52,8 @@ If yes: flag it during the design phase. After the design is approved and writte
 This workspace contains personal/small-scale projects. Keep that context in designs:
 - **ArguIAno** — personal tool, ~2 users. Don't design for thousands of users.
 - **TravelFlow** — MVP, free-tier Vercel, no paying users yet. Don't design for enterprise scale.
-- **recetario-cli, MCP Orchestrator** — experimental. Prefer simplicity over robustness.
+- **recetario** — ArguIAno's backend (recipe API + extraction worker), same ~2 users.
+- **MCP Orchestrator** — experimental. Prefer simplicity over robustness.
 
 Ruthlessly apply YAGNI. A feature that works for 2 users doesn't need a queue.
 

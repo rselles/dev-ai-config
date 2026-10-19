@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: "House planning workflow — plans saved to docs/plans/, repo-visibility check before committing, Given/When/Then criteria. Use this instead of superpowers:writing-plans when you have a spec or requirements for a multi-step task, before touching code."
 ---
 
 # Writing Plans
@@ -123,7 +123,7 @@ All commit commands in plan steps MUST:
 
 ```bash
 # Correct
-git commit -m "Add retry logic" -m "Handles transient failures in the upload path" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git commit -m "Add retry logic" -m "Handles transient failures in the upload path" -m "Co-Authored-By: <MODEL> <noreply@PROVIDER>"
 
 # Wrong
 git commit -m $'Add retry logic\n\nWhy...\n\nCo-Authored-By: ...'
@@ -131,9 +131,7 @@ git commit -m $'Add retry logic\n\nWhy...\n\nCo-Authored-By: ...'
 
 ## Task Tracking
 
-After writing the plan, create tasks using `TaskCreate` — one task per plan task. Mark tasks `in_progress` before starting each one and `completed` after.
-
-Do not use TodoWrite. Use `TaskCreate`/`TaskUpdate` for all task tracking.
+After writing the plan, add one entry per plan task to the harness's task list. Mark each in progress when you start it and completed when it is done.
 
 ## Remember
 

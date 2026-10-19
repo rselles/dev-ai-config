@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Mock curl — outputs a fixed-size body simulating a fetched web page.
+# MOCK_CURL_BYTES controls output size (default 96800 bytes ≈ 24200 tokens).
+bytes="${MOCK_CURL_BYTES:-96800}"
+# Output 'x' repeated $bytes times
+printf '%0.s x' $(seq 1 $(( bytes / 2 ))) | tr -d ' \n' | head -c "$bytes"
+echo

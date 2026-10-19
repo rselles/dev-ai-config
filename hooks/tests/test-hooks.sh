@@ -353,16 +353,16 @@ else
 fi
 cleanup_signals
 
-# Test T3: Bash tool with ssh rafaelselles → appends vps-debug
+# Test T3: Bash tool with ssh → nothing written (no vps-debug signal; post-session ignored it)
 cleanup_signals
 SIGNALS_OVERRIDE=$(mktemp)
 INPUT=$(jq -n '{"tool_name": "Bash", "tool_input": {"command": "ssh rafaelselles ls"}}')
 SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" run_hook "$TRACK" "$INPUT"
-if grep -q "vps-debug" "$SIGNALS_OVERRIDE" 2>/dev/null; then
-  pass "track-session: Bash ssh rafaelselles → vps-debug appended"
+if [ ! -s "$SIGNALS_OVERRIDE" ]; then
+  pass "track-session: Bash ssh → nothing written"
 else
-  fail "track-session: Bash ssh rafaelselles → vps-debug appended" \
-       "signals file: $(cat "$SIGNALS_OVERRIDE" 2>/dev/null || echo 'missing')"
+  fail "track-session: Bash ssh → nothing written" \
+       "file unexpectedly contains: $(cat "$SIGNALS_OVERRIDE")"
 fi
 cleanup_signals
 
@@ -383,7 +383,7 @@ cleanup_signals
 SIGNALS_DIR_T=$(mktemp -d)
 INPUT=$(jq -n --arg transcript "/tmp/session-a.jsonl" '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}, "transcript_path": $transcript}')
 SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_T" run_hook "$TRACK" "$INPUT"
-INPUT=$(jq -n --arg transcript "/tmp/session-b.jsonl" '{"tool_name": "Bash", "tool_input": {"command": "ssh rafaelselles ls"}, "transcript_path": $transcript}')
+INPUT=$(jq -n --arg transcript "/tmp/session-b.jsonl" '{"tool_name": "Skill", "tool_input": {"skill": "vps-log-review"}, "transcript_path": $transcript}')
 SIGNALS_DIR_OVERRIDE="$SIGNALS_DIR_T" run_hook "$TRACK" "$INPUT"
 SIGNAL_FILE_COUNT=$(find "$SIGNALS_DIR_T" -maxdepth 1 -type f | wc -l | tr -d ' ')
 if [ "$SIGNAL_FILE_COUNT" -eq 2 ]; then

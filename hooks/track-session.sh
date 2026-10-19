@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PostToolUse hook — detects skill invocations and VPS SSH, writes to signals file.
+# PostToolUse hook — detects skill invocations, writes to signals file.
 # Exit 0 always — never block tool execution.
 set -uo pipefail
 
@@ -29,12 +29,6 @@ case "$TOOL_NAME" in
     SKILL_MD="$SKILLS_DIR/$SKILL_NAME/SKILL.md"
     if [ -f "$SKILL_MD" ] && grep -q "## Self-Improvement Protocol" "$SKILL_MD"; then
       echo "$SKILL_NAME" >> "$SIGNALS_FILE"
-    fi
-    ;;
-  Bash)
-    CMD=$(echo "$TOOL_INPUT" | jq -r '.command // empty')
-    if echo "$CMD" | grep -qE "ssh (rafaelselles|opc@)"; then
-      echo "vps-debug" >> "$SIGNALS_FILE"
     fi
     ;;
 esac

@@ -13,7 +13,7 @@ Steps:
 2. If there are changes:
    - Run `git -C /home/sirrasel/claude-projects/dev-ai-config diff AGENTS.md` to review what changed
    - Write a commit message that accurately summarises the changes based on the diff
-   - Commit: `git -C /home/sirrasel/claude-projects/dev-ai-config commit AGENTS.md -m "<message>\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"`
+   - Commit: `git -C /home/sirrasel/claude-projects/dev-ai-config commit AGENTS.md -m "<subject>" -m "<why>" -m "Co-Authored-By: <MODEL> <noreply@PROVIDER>"`
    - Push: `git -C /home/sirrasel/claude-projects/dev-ai-config push`
    - Report what was committed and pushed
 3. If no changes: report "AGENTS.md is already in sync — nothing to commit."
