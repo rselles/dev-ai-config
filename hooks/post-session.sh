@@ -49,7 +49,11 @@ fi
 
 # Build target context from detected signals
 TARGET_CONTEXT=""
+JOURNAL_ALREADY_WRITTEN=false
 while IFS= read -r signal; do
+  if [ "$signal" = "agentic-dev-journal" ]; then
+    JOURNAL_ALREADY_WRITTEN=true
+  fi
   SKILL_MD="$SKILLS_DIR/$signal/SKILL.md"
   if [ -f "$SKILL_MD" ]; then
     TARGET_CONTEXT+="### Skill: $signal"$'\n'"$(cat "$SKILL_MD")"$'\n\n'
@@ -98,7 +102,8 @@ Output format (use these exact headers):
 [proposed changes or: no update needed]
 
 ## Journal
-[proposed entry or: no update needed]"
+[proposed entry or: no update needed]
+$([ "$JOURNAL_ALREADY_WRITTEN" = "true" ] && echo "Note: agentic-dev-journal was already invoked this session — omit the Journal section or write: no update needed")"
 
 DRAFT=$(printf '%s' "$PROMPT" | timeout 30s claude -p 2>/dev/null) || { echo "post-session: claude -p failed or timed out" >&2; exit 0; }
 rm -f "$SIGNALS_FILE"
