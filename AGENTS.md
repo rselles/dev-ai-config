@@ -28,7 +28,7 @@ When reviewing or writing code, actively look for and surface:
 - Synchronous calls that should be async
 - Missing caching where repeated computation occurs
 
-**Anti-patterns**
+**Code Anti-patterns**
 - God classes/functions, circular dependencies
 - Leaky abstractions, inappropriate coupling
 - Copy-paste code, magic numbers/strings
@@ -86,7 +86,7 @@ Use the `agentic-dev-journal` skill for significant events: incidents, architect
 ### Before Writing Code
 1. Acceptance criteria defined ✓
 2. Failing tests written ✓
-3. Read related existing code
+3. Read related existing code — don't guess
 4. Identify patterns already in use
 
 ### While Writing Code
@@ -206,13 +206,6 @@ added to that project's `AGENTS.md` (or equivalent). Do not store them only in p
 When creating a repo-level config file, always name it `AGENTS.md` and create a `CLAUDE.md`
 symlink pointing to it — never create `CLAUDE.md` directly. `AGENTS.md` is the canonical,
 tool-agnostic file; `CLAUDE.md` is a compatibility alias.
-
-## Anti-Patterns to Avoid
-- Writing implementation before tests
-- Skipping tests for "simple" changes
-- Testing implementation details instead of behavior
-- Marking done without running tests
-- Guessing instead of reading code first
 
 ## Self-Improvement Protocol
 
