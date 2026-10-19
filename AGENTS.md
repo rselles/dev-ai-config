@@ -58,7 +58,7 @@ When reviewing or writing code, actively look for and surface:
 
 ### Workflow for Any Task
 1. **Clarify**: Define acceptance criteria (skip for bug fixes — the breakage is the spec)
-2. **Plan**: Break into testable increments; use plan mode if 3+ steps
+2. **Plan**: Break into testable increments; see When to Use Plan Mode below
 3. **Test First → Implement → Verify → Repeat**
 
 ### Plan Storage
@@ -175,7 +175,7 @@ Whether to commit automatically without being asked is a project-level decision 
 - Use multiple `-m` flags — no heredoc, no ANSI-C `$'...'` quoting:
 
 ```bash
-git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: <MODEL> <noreply@PROVIDER>"
 ```
 
 ## Communication
@@ -189,7 +189,7 @@ git commit -m "Add feature" -m "Why it was needed" -m "Co-Authored-By: Claude So
 - Acceptance criteria are clear
 - Tests define the expected behavior
 - Following established patterns
-- Bug reports: diagnose, write a failing test, fix — no hand-holding needed (see TDD for Bug Fixes)
+- Bug reports: diagnose, write a failing test, fix — no hand-holding needed (see the `test-driven-development` skill → Bug Fix Entry Point)
 
 ### Progress Updates
 - Report test status at milestones

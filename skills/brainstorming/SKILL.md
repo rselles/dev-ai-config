@@ -52,7 +52,8 @@ If yes: flag it during the design phase. After the design is approved and writte
 This workspace contains personal/small-scale projects. Keep that context in designs:
 - **ArguIAno** — personal tool, ~2 users. Don't design for thousands of users.
 - **TravelFlow** — MVP, free-tier Vercel, no paying users yet. Don't design for enterprise scale.
-- **recetario-cli, MCP Orchestrator** — experimental. Prefer simplicity over robustness.
+- **recetario** — ArguIAno's backend (recipe API + extraction worker), same ~2 users.
+- **MCP Orchestrator** — experimental. Prefer simplicity over robustness.
 
 Ruthlessly apply YAGNI. A feature that works for 2 users doesn't need a queue.
 

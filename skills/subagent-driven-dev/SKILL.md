@@ -13,13 +13,13 @@ Execute a plan by dispatching a fresh subagent per task, with two-stage review a
 
 1. **Never start on main/master** without explicit user consent. Create a feature branch first.
 2. **Check `tasks/lessons.md`** in the current project. Read it before dispatching the first implementer — known failure patterns predict where edge cases live.
-3. **Create tasks** with `TaskCreate` — one per plan task. Use `TaskUpdate` to mark `in_progress` before dispatching and `completed` after review passes. Do not use TodoWrite.
+3. **Create tasks** in the harness's task list — one per plan task. Mark each in progress before dispatching and completed after review passes.
 
 ## The Process
 
 ### For Each Task
 
-1. Mark task `in_progress` with `TaskUpdate`
+1. Mark the task in progress
 2. Read `tasks/lessons.md` (if it exists) and include any relevant lessons in the implementer's context
 3. Dispatch implementer subagent with:
    - Full task text (extracted from plan — do NOT make subagent read the plan file)
@@ -35,7 +35,7 @@ Execute a plan by dispatching a fresh subagent per task, with two-stage review a
    - If issues found: implementer fixes, re-review. Repeat until ✅
 6. Dispatch code quality reviewer (only after spec compliance ✅)
    - If issues found: implementer fixes, re-review. Repeat until ✅
-7. Mark task `completed` with `TaskUpdate`
+7. Mark the task completed
 
 ### Lessons Capture in Review Loops
 

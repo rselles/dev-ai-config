@@ -27,7 +27,7 @@ Do NOT update for:
 Before writing, verify you're describing projects accurately:
 - **ArguIAno** — in active use, ~2 users, personal/hobby project
 - **TravelFlow** — MVP under market validation, free-tier Vercel, no paying users yet
-- **recetario-cli** — experimental/development, not in regular use
+- **recetario** — ArguIAno's backend (recipe API + extraction worker), in daily use behind the bot; same ~2 users
 - **MCP Orchestrator** — experimental/development
 
 Do not overstate scale or users. "Production" is a high bar — ArguIAno barely qualifies.
@@ -100,27 +100,19 @@ After writing:
 2. Commit with a clear message describing the event type and subject:
    ```
    git -C <journal-repo-path> add <files>
-   git -C <journal-repo-path> commit -m "record: <event type> — <subject>" -m "<one sentence summary>" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+   git -C <journal-repo-path> commit -m "record: <event type> — <subject>" -m "<one sentence summary>" -m "Co-Authored-By: <MODEL> <noreply@PROVIDER>"
    git -C <journal-repo-path> push
    ```
 3. Report the commit SHA and what was recorded
 
 ## Article Drafting
 
-When writing a blog post or article:
+Articles follow the journal repo's own workflow: read its `AGENTS.md`, then use the `write-article-version` skill. Notes stay in `drafts/`; the publication-ready article goes in `articles/NN-<slug>-medium.md`, where `NN` is the Medium article number. Write a LinkedIn version (`articles/NN-<slug>-linkedin.md`) only when asked; `write-article-version` covers its length and tone.
 
-**Always produce both versions in the same session:**
-1. `drafts/NN-<slug>-medium.md` — full article (3,000–5,000 words)
-2. `drafts/NN-<slug>-linkedin.md` — condensed LinkedIn version (~700–800 words)
-
-The LinkedIn version is not a summary — it's a standalone post. It hooks the reader, hits the 3–4 most important points, and ends with a link to the full article. Same conversational, first-person tone. Use `---` dividers and bold section labels.
-
-Naming convention: `NN` is the next sequential number in `drafts/`. Check existing files before numbering.
-
-After both drafts exist, commit both in one commit:
+Commit what you wrote in one commit:
 ```
-git -C <journal-repo-path> add drafts/
-git -C <journal-repo-path> commit -m "draft: article NN — <slug>" -m "<one-line description>" -m "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git -C <journal-repo-path> add articles/
+git -C <journal-repo-path> commit -m "draft: article NN — <slug>" -m "<one-line description>" -m "Co-Authored-By: <MODEL> <noreply@PROVIDER>"
 ```
 
 ## Finding the Journal Repo
