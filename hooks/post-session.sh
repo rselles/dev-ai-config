@@ -50,9 +50,6 @@ fi
 # Build target context from detected signals
 TARGET_CONTEXT=""
 while IFS= read -r signal; do
-  if [ "$signal" = "vps-debug" ]; then
-    continue
-  fi
   SKILL_MD="$SKILLS_DIR/$signal/SKILL.md"
   if [ -f "$SKILL_MD" ]; then
     TARGET_CONTEXT+="### Skill: $signal"$'\n'"$(cat "$SKILL_MD")"$'\n\n'
