@@ -2,3 +2,5 @@
 docs/
 .worktrees/
 session-review/pending.md
+session-review/pending/
+session-review/signals/
