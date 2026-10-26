@@ -41,6 +41,15 @@ fi
 
 SIGNALS=$(sort -u "$SIGNALS_FILE")
 
+# agentic-dev-journal is a marker for the Journal section, not a review target,
+# and on its own it does not warrant a review
+JOURNAL_ALREADY_WRITTEN=false
+if grep -qx "agentic-dev-journal" <<< "$SIGNALS"; then
+  JOURNAL_ALREADY_WRITTEN=true
+  SIGNALS=$(grep -vx "agentic-dev-journal" <<< "$SIGNALS")
+  if [ -z "$SIGNALS" ]; then exit 0; fi
+fi
+
 # Build transcript excerpt (last 200 JSONL lines, extract content fields)
 TRANSCRIPT_EXCERPT=""
 if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
@@ -49,11 +58,7 @@ fi
 
 # Build target context from detected signals
 TARGET_CONTEXT=""
-JOURNAL_ALREADY_WRITTEN=false
 while IFS= read -r signal; do
-  if [ "$signal" = "agentic-dev-journal" ]; then
-    JOURNAL_ALREADY_WRITTEN=true
-  fi
   SKILL_MD="$SKILLS_DIR/$signal/SKILL.md"
   if [ -f "$SKILL_MD" ]; then
     TARGET_CONTEXT+="### Skill: $signal"$'\n'"$(cat "$SKILL_MD")"$'\n\n'

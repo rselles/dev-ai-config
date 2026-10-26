@@ -394,6 +394,23 @@ else
 fi
 rm -rf "$SIGNALS_DIR_T"
 
+# Test T6: Skill agentic-dev-journal (no Self-Improvement Protocol) → still recorded,
+# so post-session can tell the review the journal was already written
+SIGNALS_OVERRIDE=$(mktemp)
+SKILLS_DIR_T=$(mktemp -d)
+mkdir -p "$SKILLS_DIR_T/agentic-dev-journal"
+printf '# Journal\nNo protocol section here.\n' > "$SKILLS_DIR_T/agentic-dev-journal/SKILL.md"
+INPUT=$(jq -n '{"tool_name": "Skill", "tool_input": {"skill": "agentic-dev-journal"}}')
+SIGNALS_OVERRIDE="$SIGNALS_OVERRIDE" SKILLS_DIR_OVERRIDE="$SKILLS_DIR_T" run_hook "$TRACK" "$INPUT"
+if grep -qx "agentic-dev-journal" "$SIGNALS_OVERRIDE" 2>/dev/null; then
+  pass "track-session: Skill agentic-dev-journal → signal written"
+else
+  fail "track-session: Skill agentic-dev-journal → signal written" \
+       "signals file: $(cat "$SIGNALS_OVERRIDE" 2>/dev/null || echo 'missing')"
+fi
+cleanup_signals
+rm -rf "$SKILLS_DIR_T"
+
 # ---------------------------------------------------------------------------
 # post-session.sh tests
 # ---------------------------------------------------------------------------
@@ -565,6 +582,75 @@ else
        "expected 2 pending draft files, got $PENDING_FILE_COUNT"
 fi
 rm -rf "$REVIEW_DIR_P" "$SIGNALS_DIR_P" "$PROJECT_ONE_P" "$PROJECT_TWO_P"
+
+# Journal-dedupe tests share a recording mock that saves the prompt it receives
+JOURNAL_NOTE="agentic-dev-journal was already invoked this session"
+setup_recording_claude() {
+  MOCK_CLAUDE_DIR_P=$(mktemp -d)
+  cat > "$MOCK_CLAUDE_DIR_P/claude" <<'MOCKEOF'
+#!/usr/bin/env bash
+PROMPT_FILE=$(dirname "$0")/prompt.txt
+cat > "$PROMPT_FILE"
+printf '## vps-log-review\nAdd pattern\n## AGENTS.md\nno update needed\n## Journal\nno update needed\n'
+exit 0
+MOCKEOF
+  chmod +x "$MOCK_CLAUDE_DIR_P/claude"
+}
+run_post_session_recorded() {
+  local skills_dir="$1"
+  INPUT=$(jq -n '{"stop_hook_active": false, "transcript_path": "/dev/null"}')
+  OUTPUT=$(printf "N\n" | echo "$INPUT" | PATH="$MOCK_CLAUDE_DIR_P:$PATH" SIGNALS_OVERRIDE="$SIGNALS_P" PENDING_OVERRIDE="$PENDING_P" SKILLS_DIR_OVERRIDE="$skills_dir" bash "$POST_SESSION" 2>/dev/null)
+}
+SKILLS_DIR_P=$(mktemp -d)
+mkdir -p "$SKILLS_DIR_P/vps-log-review" "$SKILLS_DIR_P/agentic-dev-journal"
+printf '# VPS\n## Self-Improvement Protocol\nSave lessons.\n' > "$SKILLS_DIR_P/vps-log-review/SKILL.md"
+printf '# Journal\nJOURNAL_SKILL_BODY_MARKER\n' > "$SKILLS_DIR_P/agentic-dev-journal/SKILL.md"
+
+# Test P9: journal signal present → note in prompt, journal skill not offered as a target
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+printf 'vps-log-review\nagentic-dev-journal\n' > "$SIGNALS_P"
+setup_recording_claude
+run_post_session_recorded "$SKILLS_DIR_P"
+if grep -q "$JOURNAL_NOTE" "$MOCK_CLAUDE_DIR_P/prompt.txt" 2>/dev/null \
+   && ! grep -q "JOURNAL_SKILL_BODY_MARKER" "$MOCK_CLAUDE_DIR_P/prompt.txt"; then
+  pass "post-session: journal signal → dedupe note in prompt, journal skill not a target"
+else
+  fail "post-session: journal signal → dedupe note in prompt, journal skill not a target" \
+       "prompt: $(cat "$MOCK_CLAUDE_DIR_P/prompt.txt" 2>/dev/null || echo 'missing')"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+rm -rf "$MOCK_CLAUDE_DIR_P"
+
+# Test P10: no journal signal → note absent from prompt
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "vps-log-review" > "$SIGNALS_P"
+setup_recording_claude
+run_post_session_recorded "$SKILLS_DIR_P"
+if [ -f "$MOCK_CLAUDE_DIR_P/prompt.txt" ] && ! grep -q "$JOURNAL_NOTE" "$MOCK_CLAUDE_DIR_P/prompt.txt"; then
+  pass "post-session: no journal signal → dedupe note absent"
+else
+  fail "post-session: no journal signal → dedupe note absent" \
+       "prompt: $(cat "$MOCK_CLAUDE_DIR_P/prompt.txt" 2>/dev/null || echo 'missing')"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+rm -rf "$MOCK_CLAUDE_DIR_P"
+
+# Test P11: journal is the only signal → no review runs (it is a marker, not a review trigger)
+PENDING_P=$(mktemp)
+SIGNALS_P=$(mktemp)
+echo "agentic-dev-journal" > "$SIGNALS_P"
+setup_recording_claude
+run_post_session_recorded "$SKILLS_DIR_P"
+if [ ! -f "$MOCK_CLAUDE_DIR_P/prompt.txt" ] && [ -z "$OUTPUT" ]; then
+  pass "post-session: journal-only signal → no review"
+else
+  fail "post-session: journal-only signal → no review" \
+       "claude was called or output shown: '$OUTPUT'"
+fi
+rm -f "$PENDING_P" "$SIGNALS_P"
+rm -rf "$MOCK_CLAUDE_DIR_P" "$SKILLS_DIR_P"
 
 # ---------------------------------------------------------------------------
 # pre-run.sh pending.md injection tests

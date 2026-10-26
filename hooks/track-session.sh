@@ -27,7 +27,10 @@ case "$TOOL_NAME" in
     SKILL_NAME=$(echo "$TOOL_INPUT" | jq -r '.skill // empty')
     if [ -z "$SKILL_NAME" ]; then exit 0; fi
     SKILL_MD="$SKILLS_DIR/$SKILL_NAME/SKILL.md"
-    if [ -f "$SKILL_MD" ] && grep -q "## Self-Improvement Protocol" "$SKILL_MD"; then
+    # agentic-dev-journal has no Self-Improvement Protocol but is recorded anyway:
+    # post-session uses it to skip proposing a second journal entry
+    if [ "$SKILL_NAME" = "agentic-dev-journal" ] \
+       || { [ -f "$SKILL_MD" ] && grep -q "## Self-Improvement Protocol" "$SKILL_MD"; }; then
       echo "$SKILL_NAME" >> "$SIGNALS_FILE"
     fi
     ;;
